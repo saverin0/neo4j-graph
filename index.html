@@ -1,79 +1,126 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Neo4j Graph Explorer</title>
+  <meta charset="utf-8">
+  <title>Neo4j Public Graph Explorer</title>
 
+  <!-- Neovis -->
   <script src="https://cdn.jsdelivr.net/npm/neovis.js@2.0.2/dist/neovis.js"></script>
 
   <style>
-    html, body, #viz { width: 100%; height: 100%; margin: 0; }
-    #topbar{
-      position: fixed; top: 10px; left: 10px; z-index: 999;
-      background: rgba(255,255,255,0.95); padding: 10px 12px;
-      border: 1px solid #ddd; border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      max-width: 560px; font-family: Arial, sans-serif;
+    html, body, #viz {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
     }
-    #topbar small { color:#444; }
+
+    #info {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(255,255,255,0.95);
+      padding: 10px 14px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 999;
+      max-width: 500px;
+      font-size: 14px;
+    }
   </style>
 </head>
 
 <body>
-  <div id="topbar">
-    <b>Graph Explorer</b>
-    <small>Landing view: most connected CircularValueChain / Partner / Deliverable nodes.</small>
-  </div>
 
-  <div id="viz"></div>
+<div id="info">
+  <b>Graph Explorer</b><br>
+  Starting view: CircularValueChain • Partner • Deliverable<br>
+  Click nodes to explore connected data
+</div>
 
-  <script>
-    const config = {
-      containerId: "viz",
+<div id="viz"></div>
 
-      neo4j: {
-        // IMPORTANT: no +s here
-        serverUrl: "neo4j://6c04bbfb.databases.neo4j.io",
-        serverUser: "neo4j",
-        serverPassword: "DIl4t3fCTbVppjzRLVDX05BxScsiVG1-Q8qQGGlFF9U",
+<script>
 
-        // IMPORTANT: encryption configured ONLY here
-        driverConfig: {
-          encrypted: "ENCRYPTION_ON",
-          trust: "TRUST_SYSTEM_CA_SIGNED_CERTIFICATES"
-        }
-      },
+console.log("DEPLOY FINAL VERSION");
 
-      // Clean landing view (no DB changes)
-initialCypher: `
-MATCH (n)-[r]-(m)
-WHERE (n: CircularValueChain OR n: Partner OR n: Deliverable)
-  AND (m: CircularValueChain OR m: Partner OR m: Deliverable)
-RETURN n, r, m
-LIMIT 300
-`,
+const config = {
 
+  containerId: "viz",
 
-      labels: {
-        Partner: { caption: "partners_legalname" },
-        Deliverable: { caption: "deliverables_name" },
-        Phase: { caption: "phase_id" },
-        Demonstration: { caption: "demonstrations" },
-        CircularValueChain: { caption: "value_chains" },
-        Innovation: { caption: "phase_id" }
-      },
+  neo4j: {
+    serverUrl: "neo4j://6c04bbfb.databases.neo4j.io",
+    serverUser: "neo4j",
+    serverPassword: "PUT_YOUR_PASSWORD_HERE",
 
-      relationships: { "*": {} },
+    driverConfig: {
+      encrypted: "ENCRYPTION_ON",
+      trust: "TRUST_SYSTEM_CA_SIGNED_CERTIFICATES"
+    }
+  },
 
-      visConfig: {
-        edges: { width: 2, smooth: false },
-        physics: { enabled: true, stabilization: { iterations: 300 } }
+  /*
+    CLEAN LANDING VIEW
+    Shows only connected important nodes
+  */
+
+  initialCypher: `
+    MATCH (n)-[r]-(m)
+    WHERE (n:CircularValueChain OR n:Partner OR n:Deliverable)
+      AND (m:CircularValueChain OR m:Partner OR m:Deliverable)
+    RETURN n, r, m
+    LIMIT 800
+  `,
+
+  /*
+    Node labels captions
+  */
+
+  labels: {
+    Partner: { caption: "partners_legalname" },
+    Deliverable: { caption: "deliverables_name" },
+    Phase: { caption: "phase_id" },
+    Demonstration: { caption: "demonstrations" },
+    CircularValueChain: { caption: "value_chains" },
+    Innovation: { caption: "phase_id" }
+  },
+
+  relationships: {
+    "*": {}
+  },
+
+  /*
+    Visual layout tuning
+  */
+
+  visConfig: {
+
+    nodes: {
+      shape: "dot",
+      size: 12,
+      font: { size: 14 }
+    },
+
+    edges: {
+      width: 2,
+      smooth: false,
+      arrows: { to: { enabled: true } }
+    },
+
+    physics: {
+      enabled: true,
+      stabilization: {
+        iterations: 700
       }
-    };
+    }
+  }
+};
 
-    const viz = new NeoVis.default(config);
-    viz.render();
-  </script>
+const viz = new NeoVis.default(config);
+viz.render();
+
+</script>
 </body>
 </html>
 
