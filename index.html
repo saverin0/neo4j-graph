@@ -1,127 +1,187 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Neo4j Public Graph Explorer</title>
+  <meta charset="utf-8" />
+  <title>Graph Explorer</title>
 
-  <!-- Neovis -->
   <script src="https://cdn.jsdelivr.net/npm/neovis.js@2.0.2/dist/neovis.js"></script>
 
   <style>
-    html, body, #viz {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; font-family: Arial, sans-serif; }
+    #app { display:flex; width:100%; height:100%; }
+    #viz { flex:1; height:100%; }
 
-    #info {
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      background: rgba(255,255,255,0.95);
-      padding: 10px 14px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      z-index: 999;
-      max-width: 500px;
-      font-size: 14px;
+    #side {
+      width: 340px;
+      border-left: 1px solid #ddd;
+      padding: 12px;
+      box-sizing: border-box;
+      background: #fff;
+      overflow: auto;
     }
+    #toolbar {
+      position: fixed;
+      top: 12px; left: 12px;
+      z-index: 999;
+      background: rgba(255,255,255,0.96);
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      padding: 10px 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    button {
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #eee; }
+    .kv { margin: 6px 0; }
+    .k { color:#666; font-size: 12px; }
+    .v { font-size: 13px; word-break: break-word; }
+    code { background:#f2f2f2; padding:1px 4px; border-radius: 4px; }
   </style>
 </head>
 
 <body>
+  <div id="toolbar">
+    <button id="btnHome">Home</button>
+    <button id="btnMore">Load more</button>
+    <span style="color:#444;font-size:13px;">
+      Click a node → see details & expand neighbors
+    </span>
+  </div>
 
-<div id="info">
-  <b>Graph Explorer</b><br>
-  Starting view: CircularValueChain • Partner • Deliverable<br>
-  Click nodes to explore connected data
-</div>
-
-<div id="viz"></div>
+  <div id="app">
+    <div id="viz"></div>
+    <div id="side">
+      <h3 style="margin-top:0;">Details</h3>
+      <div id="details" style="color:#666;">Click a node to see its properties here.</div>
+    </div>
+  </div>
 
 <script>
+  // ====== CONFIG ======
+  const NEO4J_URL = "neo4j://6c04bbfb.databases.neo4j.io";
+  const NEO4J_USER = "neo4j";
+  const NEO4J_PASS = "DIl4t3fCTbVppjzRLVDX05BxScsiVG1-Q8qQGGlFF9U";
 
-console.log("DEPLOY FINAL VERSION");
+  // How many CircularValueChains to start with
+  let HOME_CVC_LIMIT = 8;
+  // How many neighbors per expansion
+  const EXPAND_LIMIT = 120;
 
-const config = {
-
-  containerId: "viz",
-
-  neo4j: {
-    serverUrl: "neo4j://6c04bbfb.databases.neo4j.io",
-    serverUser: "neo4j",
-    serverPassword: "DIl4t3fCTbVppjzRLVDX05BxScsiVG1-Q8qQGGlFF9U",
-
-    driverConfig: {
-      encrypted: "ENCRYPTION_ON",
-      trust: "TRUST_SYSTEM_CA_SIGNED_CERTIFICATES"
-    }
-  },
-
-  /*
-    CLEAN LANDING VIEW
-    Shows only connected important nodes
-  */
-
-  initialCypher: `
-    MATCH (n)-[r]-(m)
-    WHERE (n:CircularValueChain OR n:Partner OR n:Deliverable)
-      AND (m:CircularValueChain OR m:Partner OR m:Deliverable)
-    RETURN n, r, m
-    LIMIT 800
-  `,
-
-  /*
-    Node labels captions
-  */
-
-  labels: {
-    Partner: { caption: "partners_legalname" },
-    Deliverable: { caption: "deliverables_name" },
-    Phase: { caption: "phase_id" },
-    Demonstration: { caption: "demonstrations" },
-    CircularValueChain: { caption: "value_chains" },
-    Innovation: { caption: "phase_id" }
-  },
-
-  relationships: {
-    "*": {}
-  },
-
-  /*
-    Visual layout tuning
-  */
-
-  visConfig: {
-
-    nodes: {
-      shape: "dot",
-      size: 12,
-      font: { size: 14 }
-    },
-
-    edges: {
-      width: 2,
-      smooth: false,
-      arrows: { to: { enabled: true } }
-    },
-
-    physics: {
-      enabled: true,
-      stabilization: {
-        iterations: 700
-      }
-    }
+  // ====== Helper: safe render query ======
+  function homeCypher(limit) {
+    // Start clean: choose a few CVCs, pull their neighborhood (partners/deliverables/others)
+    return `
+      MATCH (c:CircularValueChain)
+      WITH c LIMIT ${limit}
+      MATCH (c)-[r]-(n)
+      RETURN c, r, n
+      LIMIT 600
+    `;
   }
-};
 
-const viz = new NeoVis.default(config);
-viz.render();
+  function expandCypher(nodeId) {
+    // Expand one hop around clicked node (keeps exploration controlled)
+    return `
+      MATCH (n) WHERE id(n) = ${nodeId}
+      MATCH (n)-[r]-(m)
+      RETURN n, r, m
+      LIMIT ${EXPAND_LIMIT}
+    `;
+  }
 
+  // ====== Neovis instance ======
+  const config = {
+    containerId: "viz",
+    neo4j: {
+      serverUrl: NEO4J_URL,
+      serverUser: NEO4J_USER,
+      serverPassword: NEO4J_PASS,
+      driverConfig: {
+        encrypted: "ENCRYPTION_ON",
+        trust: "TRUST_SYSTEM_CA_SIGNED_CERTIFICATES"
+      }
+    },
+
+    initialCypher: homeCypher(HOME_CVC_LIMIT),
+
+    labels: {
+      Partner: { caption: "partners_legalname" },
+      Deliverable: { caption: "deliverables_name" },
+      Phase: { caption: "phase_id" },
+      Demonstration: { caption: "demonstrations" },
+      CircularValueChain: { caption: "value_chains" },
+      Innovation: { caption: "phase_id" }
+    },
+
+    relationships: { "*": {} },
+
+    visConfig: {
+      edges: { width: 2, smooth: false },
+      physics: { enabled: true, stabilization: { iterations: 900 } }
+    }
+  };
+
+  const viz = new NeoVis.default(config);
+  viz.render();
+
+  // ====== UI actions ======
+  document.getElementById("btnHome").onclick = () => {
+    HOME_CVC_LIMIT = 8;
+    viz.renderWithCypher(homeCypher(HOME_CVC_LIMIT));
+    document.getElementById("details").innerHTML = "Click a node to see its properties here.";
+  };
+
+  document.getElementById("btnMore").onclick = () => {
+    HOME_CVC_LIMIT += 6; // load more CVC anchors
+    viz.renderWithCypher(homeCypher(HOME_CVC_LIMIT));
+  };
+
+  // ====== Click behavior: show all properties + expand ======
+  // Neovis exposes the underlying vis Network at viz._network
+  // We attach event handlers after the first render completes
+  function attachHandlers() {
+    const net = viz._network;
+    if (!net) return;
+
+    net.on("click", (params) => {
+      if (!params.nodes || params.nodes.length === 0) return;
+      const clicked = params.nodes[0];
+
+      // Show details (all properties)
+      const node = viz._data.nodes.get(clicked);
+      const props = node && node.raw && node.raw.properties ? node.raw.properties : null;
+      const labels = node && node.raw && node.raw.labels ? node.raw.labels : [];
+
+      const el = document.getElementById("details");
+      if (!props) {
+        el.innerHTML = "<div style='color:#666;'>No properties found on this node.</div>";
+      } else {
+        const rows = Object.entries(props).map(([k,v]) => `
+          <div class="kv"><div class="k">${k}</div><div class="v">${String(v)}</div></div>
+        `).join("");
+        el.innerHTML = `
+          <div style="margin-bottom:8px;"><b>Labels:</b> <code>${labels.join(", ")}</code></div>
+          ${rows}
+          <hr>
+          <div style="color:#666;font-size:12px;">Expanding neighbors…</div>
+        `;
+      }
+
+      // Expand neighbors
+      viz.renderWithCypher(expandCypher(clicked));
+    });
+  }
+
+  // Attach handlers after initial render; delay helps ensure network exists
+  setTimeout(attachHandlers, 1200);
 </script>
 </body>
 </html>
-
-
