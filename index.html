@@ -7,94 +7,32 @@
 <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
 
 <style>
-html,body {
-  margin:0;
-  height:100%;
-  background:#070b18;
-  font-family:Arial,Helvetica,sans-serif;
+html,body{margin:0;height:100%;background:#070b18;font-family:Arial,Helvetica,sans-serif;}
+#topbar{
+  position:fixed;top:12px;left:12px;right:12px;height:56px;display:flex;align-items:center;gap:10px;
+  background:rgba(10,15,35,.85);backdrop-filter:blur(10px);border-radius:14px;padding:10px 14px;
+  box-shadow:0 0 30px rgba(0,0,0,.7);z-index:10;color:#fff;
 }
-
-#topbar {
-  position:fixed;
-  top:12px;
-  left:12px;
-  right:12px;
-  height:56px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background:rgba(10,15,35,.85);
-  backdrop-filter: blur(10px);
-  border-radius:14px;
-  padding:10px 14px;
-  box-shadow:0 0 30px rgba(0,0,0,.7);
-  z-index:10;
-  color:#fff;
-}
-
-.btn {
-  background:#141b3c;
-  border:1px solid #2a3380;
-  color:#fff;
-  padding:7px 14px;
-  border-radius:12px;
-  cursor:pointer;
-}
-.btn:hover { background:#1c255c; }
-
-#search {
-  flex:1;
-  background:#0f1433;
-  border:1px solid #2a3380;
-  border-radius:12px;
-  padding:8px 12px;
-  color:#fff;
-}
-
-#app {
-  display:flex;
-  height:100%;
-}
-
-#cy {
-  flex:1;
-}
-
-#side {
-  width:320px;
-  padding:12px;
-  background:#090f25;
-  color:#eee;
-  border-left:1px solid #1b2350;
-}
-
-.small { color:#aaa; font-size:12px; }
-.k { color:#7fa3ff; font-size:12px; }
-.v { margin-bottom:8px; }
-.hidden { display:none; }
-
-.legend {
-  position:fixed;
-  bottom:12px;
-  left:12px;
-  background:rgba(10,15,35,.9);
-  padding:10px 14px;
-  border-radius:12px;
-  color:#ddd;
-  font-size:13px;
-}
-.legend div { margin:4px 0; }
-.dot { display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px; }
-
+.btn{background:#141b3c;border:1px solid #2a3380;color:#fff;padding:7px 14px;border-radius:12px;cursor:pointer;}
+.btn:hover{background:#1c255c;}
+#search{flex:1;background:#0f1433;border:1px solid #2a3380;border-radius:12px;padding:8px 12px;color:#fff;}
+#app{display:flex;height:100%;}
+#cy{flex:1;}
+#side{width:360px;padding:12px;background:#090f25;color:#eee;border-left:1px solid #1b2350;overflow:auto;}
+.small{color:#aaa;font-size:12px;}
+.k{color:#7fa3ff;font-size:12px;margin-top:10px;}
+.v{margin-bottom:8px;word-break:break-word;}
+.legend{position:fixed;bottom:12px;left:12px;background:rgba(10,15,35,.9);padding:10px 14px;border-radius:12px;color:#ddd;font-size:13px;}
+.legend div{margin:4px 0;}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;}
 </style>
 </head>
 
 <body>
-
 <div id="topbar">
   ⚡ <b>Graph Explorer</b>
-  <button class="btn" onclick="homeView()">Home</button>
-  <button class="btn" onclick="showAll()">Show all</button>
+  <button class="btn" id="btnHome">Home</button>
+  <button class="btn" id="btnShowAll">Show all</button>
   <input id="search" placeholder="Search (any property) and press Enter">
   <span class="small">Hover = focus • Click = details • Double click = expand</span>
 </div>
@@ -103,10 +41,7 @@ html,body {
   <div id="cy"></div>
   <div id="side">
     <h3>Details</h3>
-    <div id="details" class="small">
-      Clean landing view loaded.<br>
-      Double click hubs to explore categories.
-    </div>
+    <div id="details" class="small">Loading graph…</div>
   </div>
 </div>
 
@@ -119,8 +54,6 @@ html,body {
 </div>
 
 <script>
-
-// COLORS
 const COLORS = {
   hub:"#B8BFFF",
   CircularValueChain:"#00E5FF",
@@ -131,7 +64,6 @@ const COLORS = {
   Other:"#8892ff"
 };
 
-// HUB DEFINITIONS
 const HUBS = [
  {id:"HUB_CVC",label:"CircularValueChain",title:"Circular Value Chains"},
  {id:"HUB_PARTNER",label:"Partner",title:"Partners"},
@@ -142,248 +74,306 @@ const HUBS = [
 
 let cy;
 
-// TEXT CLEANER
 function asNiceText(v){
- if(v===undefined||v===null) return "";
- if(Array.isArray(v)) return v.join(", ");
- return String(v);
+  if(v===undefined||v===null) return "";
+  if(Array.isArray(v)) return v.filter(Boolean).join(" • ");
+  if(typeof v === "object") return JSON.stringify(v);
+  return String(v);
 }
 
-// LABEL PICKER
 function pickNodeLabel(d){
- const label=(d.labels&&d.labels[0])||"Other";
+  const label=(d.labels && d.labels[0]) || "Other";
 
- if(label==="Partner") return asNiceText(d.partners)||asNiceText(d.partners_legalname)||d.id;
- if(label==="Deliverable") return asNiceText(d.deliverables_no)||asNiceText(d.deliverables_name)||d.id;
- if(label.toLowerCase().includes("circularvaluechain"))
-   return asNiceText(d.valuechain_name)||asNiceText(d.value_chains)||d.id;
- if(label==="Demonstration") return asNiceText(d.demonstrations)||d.id;
- if(label==="Innovation") return asNiceText(d.innovations_name)||d.id;
+  if(label==="Partner") return asNiceText(d.partners) || asNiceText(d.partners_legalname) || d.id;
+  if(label==="Deliverable") return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || d.id;
 
- return asNiceText(d.phase_id)||d.id;
+  if((label||"").toLowerCase().includes("circularvaluechain"))
+    return asNiceText(d.valuechain_name) || asNiceText(d.value_chains) || d.id;
+
+  if(label==="Demonstration") return asNiceText(d.demonstrations) || asNiceText(d.demonstrations_type) || d.id;
+  if(label==="Innovation") return asNiceText(d.innovations_name) || d.id;
+
+  return asNiceText(d.phase_id) || d.id;
 }
 
-// HUB MAP
 function hubIdFor(label){
- const L=(label||"").toLowerCase();
- if(L.includes("circularvaluechain")) return "HUB_CVC";
- if(L==="partner") return "HUB_PARTNER";
- if(L==="deliverable") return "HUB_DELIV";
- if(L==="demonstration") return "HUB_DEMO";
- if(L==="innovation") return "HUB_INNO";
- return null;
+  const L=(label||"").toLowerCase();
+  if(L.includes("circularvaluechain")) return "HUB_CVC";
+  if(L==="partner") return "HUB_PARTNER";
+  if(L==="deliverable") return "HUB_DELIV";
+  if(L==="demonstration") return "HUB_DEMO";
+  if(L==="innovation") return "HUB_INNO";
+  return null;
 }
 
-// LOAD GRAPH JSON
-fetch("graph.json")
-.then(r=>r.json())
-.then(raw=>{
+function unwrapElements(raw){
+  // Supports: [ { json: { elements: ... } } ]  OR  { elements: ... }
+  if(Array.isArray(raw) && raw[0] && raw[0].json && raw[0].json.elements) return raw[0].json.elements;
+  if(raw && raw.elements) return raw.elements;
+  return null;
+}
 
-const elements=[];
+function showError(msg, err){
+  console.error(msg, err);
+  document.getElementById("details").innerHTML =
+    `<div style="color:#ffb6b6"><b>Error:</b> ${msg}</div>
+     <div class="small" style="margin-top:8px">Open DevTools (F12) → Console for details.</div>`;
+}
 
-// REAL NODES
-raw[0].json.elements.nodes.forEach(n=>{
- elements.push({
-   data:{
-     id:n.data.id,
-     label:n.data.labels[0],
-     name:pickNodeLabel(n.data),
-     raw:n.data,
-     kind:"real"
-   }
- });
-});
+function initGraph(elements){
+  // Edges can be in elements.edges OR elements.relationships
+  const nodesArr = elements.nodes || [];
+  const edgesArr = elements.edges || elements.relationships || [];
 
-// REAL EDGES
-raw[0].json.elements.relationships.forEach(r=>{
- elements.push({
-   data:{
-     id:r.data.id,
-     source:r.data.startNode,
-     target:r.data.endNode,
-     kind:"realEdge"
-   }
- });
-});
-
-// HUB NODES
-HUBS.forEach(h=>{
- elements.push({
-   data:{
-     id:h.id,
-     name:h.title,
-     label:h.label,
-     kind:"hub"
-   }
- });
-});
-
-// CYTOSCAPE INIT
-cy=cytoscape({
- container:document.getElementById("cy"),
- elements,
- layout:{name:"preset"},
- style:[
- {
-  selector:"node",
-  style:{
-    "background-color":ele=>COLORS[ele.data("label")]||COLORS.Other,
-    "label":"data(name)",
-    "color":"#fff",
-    "font-size":"11px",
-    "text-outline-color":"#000",
-    "text-outline-width":2,
-    "width":26,
-    "height":26
+  if(!nodesArr.length){
+    showError("No nodes found in graph.json (elements.nodes is empty).");
+    return;
   }
- },
- {
-  selector:'node[kind="hub"]',
-  style:{
-    "width":85,
-    "height":85,
-    "font-size":"16px",
-    "background-color":COLORS.hub,
-    "font-weight":"bold"
-  }
- },
- {
-  selector:"edge",
-  style:{
-    "line-color":"#ccc",
-    "target-arrow-color":"#ccc",
-    "target-arrow-shape":"triangle",
-    "width":1.5,
-    "curve-style":"bezier"
-  }
- },
- {
-  selector:".hidden",
-  style:{ "display":"none" }
- },
- {
-  selector:".faded",
-  style:{ "opacity":0.05 }
- }
- ]
-});
 
-homeView();
+  const cyNodes = nodesArr.map(n=>{
+    const d = n.data || {};
+    const label = (d.labels && d.labels[0]) || "Other";
+    return {
+      data:{
+        id: d.id,
+        label,
+        name: pickNodeLabel(d),
+        raw: d,
+        kind:"real"
+      }
+    };
+  });
 
-// ---------- INTERACTION ----------
+  const cyEdges = edgesArr.map(e=>{
+    const d = e.data || {};
+    return {
+      data:{
+        id: d.id,
+        source: d.source || d.startNode,
+        target: d.target || d.endNode,
+        kind:"realEdge",
+        rel: d.type || d.label || ""
+      }
+    };
+  });
 
-// HOME VIEW
+  const hubNodes = HUBS.map(h=>({
+    data:{ id:h.id, name:h.title, label:h.label, kind:"hub" }
+  }));
+
+  cy = cytoscape({
+    container: document.getElementById("cy"),
+    elements: { nodes:[...hubNodes, ...cyNodes], edges: cyEdges },
+    layout: { name:"preset" },
+    style: [
+      {
+        selector:"node",
+        style:{
+          "background-color": ele => COLORS[ele.data("label")] || COLORS.Other,
+          "label":"data(name)",
+          "color":"#fff",
+          "font-size":"11px",
+          "text-outline-color":"#000",
+          "text-outline-width":2,
+          "width":26,
+          "height":26
+        }
+      },
+      {
+        selector:'node[kind="hub"]',
+        style:{
+          "width":85,"height":85,"font-size":"16px",
+          "background-color": COLORS.hub,
+          "font-weight":"bold"
+        }
+      },
+      {
+        selector:"edge",
+        style:{
+          "line-color":"rgba(220,230,255,0.35)",
+          "target-arrow-color":"rgba(220,230,255,0.45)",
+          "target-arrow-shape":"triangle",
+          "width":1.7,
+          "curve-style":"bezier"
+        }
+      },
+      { selector:".hidden", style:{ "display":"none" } },
+      { selector:".faded", style:{ "opacity":0.06 } }
+    ],
+    wheelSensitivity: 0.15
+  });
+
+  setupUI();
+  homeView();
+}
+
 function homeView(){
- cy.elements().addClass("hidden");
- cy.nodes('[kind="hub"]').removeClass("hidden");
+  cy.elements().addClass("hidden");
+  cy.nodes('[kind="hub"]').removeClass("hidden");
+  cy.edges().addClass("hidden");
 
- const w=cy.width(),h=cy.height();
+  const w=cy.width(), h=cy.height();
 
- cy.getElementById("HUB_CVC").position({x:w*0.45,y:h*0.55});
- cy.getElementById("HUB_PARTNER").position({x:w*0.30,y:h*0.35});
- cy.getElementById("HUB_DELIV").position({x:w*0.70,y:h*0.55});
- cy.getElementById("HUB_DEMO").position({x:w*0.55,y:h*0.30});
- cy.getElementById("HUB_INNO").position({x:w*0.55,y:h*0.75});
+  cy.getElementById("HUB_CVC").position({x:w*0.45,y:h*0.55});
+  cy.getElementById("HUB_PARTNER").position({x:w*0.28,y:h*0.35});
+  cy.getElementById("HUB_DELIV").position({x:w*0.72,y:h*0.55});
+  cy.getElementById("HUB_DEMO").position({x:w*0.55,y:h*0.30});
+  cy.getElementById("HUB_INNO").position({x:w*0.55,y:h*0.75});
 
- cy.zoom(1);
- cy.center(cy.nodes('[kind="hub"]'));
+  cy.zoom(1);
+  cy.center(cy.nodes('[kind="hub"]'));
 
- document.getElementById("details").innerHTML="Clean landing view loaded.";
+  document.getElementById("details").innerHTML =
+    `<div class="small">Home loaded: 5 hubs. Double click a hub to reveal that category.</div>`;
 }
 
-// SHOW ALL
 function showAll(){
- cy.elements().removeClass("hidden");
- cy.layout({name:"cose",animate:true,gravity:1}).run();
+  cy.elements().removeClass("hidden");
+  // A gentle layout without crazy zoom
+  cy.layout({ name:"cose", animate:true, gravity:0.9, fit:false }).run();
+  document.getElementById("details").innerHTML =
+    `<div class="small">All nodes shown. Hover any node to focus its neighborhood.</div>`;
 }
 
-// REVEAL CATEGORY
 function revealCategory(label){
- const hubId=hubIdFor(label);
- if(!hubId) return;
+  const hubId = hubIdFor(label);
+  if(!hubId) return;
 
- cy.elements().addClass("hidden");
- cy.nodes('[kind="hub"]').removeClass("hidden");
+  cy.elements().addClass("hidden");
+  cy.nodes('[kind="hub"]').removeClass("hidden");
 
- const hub=cy.getElementById(hubId);
- const center=hub.position();
+  const hub = cy.getElementById(hubId);
+  const center = hub.position();
 
- const group=cy.nodes().filter(n=>n.data("kind")==="real"&&n.data("label")===label);
- group.removeClass("hidden");
+  const group = cy.nodes().filter(n => n.data("kind")==="real" && n.data("label")===label);
+  group.removeClass("hidden");
 
- cy.edges().addClass("hidden");
+  // Hide real edges for a clean category view (less mess)
+  cy.edges().addClass("hidden");
 
- const radius=220;
- const nodes=group.toArray();
+  // Put nodes in a compact ring around the hub
+  const radius = 240;
+  const nodes = group.toArray();
+  nodes.forEach((n,i)=>{
+    const a = (-Math.PI/2) + (2*Math.PI*i)/Math.max(nodes.length,1);
+    n.position({ x: center.x + radius*Math.cos(a), y: center.y + radius*Math.sin(a) });
+  });
 
- nodes.forEach((n,i)=>{
-   const a=(2*Math.PI*i)/Math.max(nodes.length,1);
-   n.position({
-     x:center.x+radius*Math.cos(a),
-     y:center.y+radius*Math.sin(a)
-   });
- });
+  cy.animate({ center: { eles: hub } }, { duration: 200 });
 
- cy.center(hub);
+  document.getElementById("details").innerHTML =
+    `<div class="small"><b>${label}</b> opened. Click a node for details. Double click a node to expand neighbors.</div>`;
 }
 
-// CLICK → DETAILS
-cy.on("tap","node",evt=>{
- const n=evt.target;
- if(n.data("kind")==="hub") return;
+function showDetails(n){
+  if(n.data("kind")==="hub"){
+    document.getElementById("details").innerHTML =
+      `<div class="small"><b>${n.data("name")}</b><br>Double click to open this category.</div>`;
+    return;
+  }
 
- const d=n.data("raw");
- let html=`<b>${n.data("name")}</b><br><br>`;
+  const d = n.data("raw") || {};
+  let html = `<div style="font-size:16px;font-weight:700;margin-bottom:8px">${n.data("name")}</div>`;
+  html += `<div class="small">Type: <b>${n.data("label")}</b></div><hr/>`;
 
- Object.entries(d).forEach(([k,v])=>{
-   html+=`<div class="k">${k}</div><div class="v">${asNiceText(v)}</div>`;
- });
+  Object.entries(d).forEach(([k,v])=>{
+    html += `<div class="k">${k}</div><div class="v">${asNiceText(v)}</div>`;
+  });
 
- document.getElementById("details").innerHTML=html;
-});
+  document.getElementById("details").innerHTML = html;
+}
 
-// DOUBLE CLICK → EXPAND
-let lastTap=0;
-cy.on("tap","node",evt=>{
- const now=Date.now();
- if(now-lastTap<250){
-   const n=evt.target;
-   if(n.data("kind")==="hub"){
-     revealCategory(n.data("label"));
-   } else {
-     const neigh=n.closedNeighborhood();
-     cy.elements().addClass("hidden");
-     neigh.removeClass("hidden");
-     cy.center(n);
-   }
- }
- lastTap=now;
-});
+function expandLocal(n){
+  // reveal n + its 1-hop neighborhood
+  const neigh = n.closedNeighborhood();
 
-// HOVER FOCUS
-cy.on("mouseover","node",evt=>{
- const n=evt.target;
- cy.elements().addClass("faded");
- n.closedNeighborhood().removeClass("faded");
-});
+  cy.elements().addClass("hidden");
+  neigh.removeClass("hidden");
 
-cy.on("mouseout","node",()=>{
- cy.elements().removeClass("faded");
-});
+  // keep camera stable
+  cy.animate({ center: { eles: n } }, { duration: 180 });
 
-// SEARCH
-document.getElementById("search").addEventListener("keydown",e=>{
- if(e.key==="Enter"){
-   const q=e.target.value.toLowerCase();
-   cy.elements().addClass("hidden");
-   cy.nodes().filter(n=>{
-     const raw=n.data("raw");
-     return raw&&Object.values(raw).some(v=>String(v).toLowerCase().includes(q));
-   }).removeClass("hidden");
- }
-});
+  document.getElementById("details").innerHTML +=
+    `<div class="small" style="margin-top:10px;color:#9fb3ff">Expanded 1-hop neighborhood.</div>`;
+}
 
-});
+function setupUI(){
+  document.getElementById("btnHome").onclick = homeView;
+  document.getElementById("btnShowAll").onclick = showAll;
+
+  // hover focus
+  cy.on("mouseover","node",evt=>{
+    const n = evt.target;
+    cy.elements().addClass("faded");
+    n.closedNeighborhood().removeClass("faded");
+  });
+  cy.on("mouseout","node",()=>{
+    cy.elements().removeClass("faded");
+  });
+
+  // click = details
+  cy.on("tap","node",evt=>{
+    showDetails(evt.target);
+  });
+
+  // double click detection
+  let lastTapTime = 0;
+  let lastTapId = null;
+
+  cy.on("tap","node",evt=>{
+    const now = Date.now();
+    const id = evt.target.id();
+    const isDouble = (lastTapId===id && (now-lastTapTime)<330);
+    lastTapTime = now;
+    lastTapId = id;
+    if(!isDouble) return;
+
+    const n = evt.target;
+    if(n.data("kind")==="hub"){
+      revealCategory(n.data("label"));
+    } else {
+      expandLocal(n);
+    }
+  });
+
+  // search
+  document.getElementById("search").addEventListener("keydown",e=>{
+    if(e.key!=="Enter") return;
+    const q = e.target.value.trim().toLowerCase();
+    if(!q) return;
+
+    const hits = cy.nodes().filter(n=>{
+      if(n.data("kind")!=="real") return false;
+      const raw = n.data("raw") || {};
+      return Object.values(raw).some(v => asNiceText(v).toLowerCase().includes(q));
+    });
+
+    cy.elements().addClass("hidden");
+    cy.nodes('[kind="hub"]').removeClass("hidden");
+    hits.removeClass("hidden");
+    cy.animate({ center: { eles: hits } }, { duration: 180 });
+
+    document.getElementById("details").innerHTML =
+      `<div class="small">Search results: <b>${hits.length}</b> nodes shown. Press Home to reset.</div>`;
+  });
+}
+
+// MAIN
+(async function(){
+  try{
+    const res = await fetch("./graph.json");
+    if(!res.ok) throw new Error("graph.json not found (check file name + location).");
+    const raw = await res.json();
+
+    const elements = unwrapElements(raw);
+    if(!elements) throw new Error("Could not find elements in graph.json. (Unexpected JSON format)");
+
+    initGraph(elements);
+  } catch(err){
+    showError(err.message, err);
+  }
+})();
 </script>
+
 </body>
 </html>
