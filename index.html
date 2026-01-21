@@ -1,314 +1,215 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <title>Graph Explorer</title>
 
+<!-- Cytoscape -->
 <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
 
 <style>
-html,body{margin:0;height:100%;background:#070b18;font-family:Arial}
-#topbar{position:fixed;top:12px;left:12px;right:12px;height:54px;display:flex;gap:10px;align-items:center;
-background:rgba(10,15,35,.85);backdrop-filter:blur(8px);border-radius:14px;padding:8px 14px;color:#fff;z-index:10}
-.btn{background:#141b3c;border:1px solid #2a3380;color:#fff;padding:6px 14px;border-radius:12px;cursor:pointer}
-.btn:hover{background:#1c255c}
-#search{flex:1;background:#0f1433;border:1px solid #2a3380;border-radius:12px;padding:7px 12px;color:#fff}
-#app{display:flex;height:100%}
-#cy{flex:1}
-#side{width:320px;background:#090f25;color:#eee;border-left:1px solid #1b2350;padding:12px;overflow:auto}
-.small{font-size:12px;color:#aaa}
-.k{color:#7fa3ff;font-size:12px;margin-top:8px}
-.v{margin-bottom:8px;word-break:break-word}
-.legend{position:fixed;bottom:12px;left:12px;background:rgba(10,15,35,.9);padding:10px 14px;border-radius:12px;color:#ddd;font-size:13px}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top, #0d1630, #030712);
+  font-family: Arial, sans-serif;
+  color: white;
+}
+
+#toolbar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  background: rgba(15,20,40,0.9);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 0 20px rgba(0,200,255,0.2);
+}
+
+button {
+  background: #141b33;
+  border: 1px solid #2b3a7a;
+  color: white;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1e2a55;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+}
 </style>
 </head>
 
 <body>
 
-<div id="topbar">
-⚡ <b>Graph Explorer</b>
-<button class="btn" id="btnHome">Home</button>
-<button class="btn" id="btnShowAll">Show all</button>
-<input id="search" placeholder="Search and press Enter">
-<span class="small">Hover = focus • Click = details • Double click = expand</span>
+<div id="toolbar">
+  ⚡ Graph Explorer
+  <button onclick="resetView()">Home</button>
+  <button onclick="showAll()">Show all</button>
+  <span style="font-size:12px;color:#aaa">
+    Hover = focus · Drag = move
+  </span>
 </div>
 
-<div id="app">
 <div id="cy"></div>
-<div id="side">
-<h3>Details</h3>
-<div id="details" class="small">Home loaded. Double click a hub to explore.</div>
-</div>
-</div>
-
-<div class="legend">
-<div><span class="dot" style="background:#00E5FF"></span> CircularValueChain</div>
-<div><span class="dot" style="background:#FF2BD6"></span> Partner</div>
-<div><span class="dot" style="background:#9BFF3A"></span> Deliverable</div>
-<div><span class="dot" style="background:#FFD34A"></span> Demonstration</div>
-<div><span class="dot" style="background:#FF7A00"></span> Innovation</div>
-</div>
 
 <script>
 
-const COLORS={
-hub:"#B8BFFF",
-CircularValueChain:"#00E5FF",
-Partner:"#FF2BD6",
-Deliverable:"#9BFF3A",
-Demonstration:"#FFD34A",
-Innovation:"#FF7A00",
-Other:"#8892ff"
-};
+const cy = cytoscape({
+  container: document.getElementById("cy"),
 
-const HUBS=[
-{id:"HUB_CVC",label:"CircularValueChain",title:"Circular Value Chains"},
-{id:"HUB_PARTNER",label:"Partner",title:"Partners"},
-{id:"HUB_DELIV",label:"Deliverable",title:"Deliverables"},
-{id:"HUB_DEMO",label:"Demonstration",title:"Demonstrations"},
-{id:"HUB_INNO",label:"Innovation",title:"Innovations"}
-];
+  style: [
 
-let cy;
+    {
+      selector: "node",
+      style: {
+        "background-color": "#5fa9ff",
+        "label": "data(labelText)",
+        "color": "#ffffff",
+        "font-size": "10px",
+        "text-outline-color": "#000",
+        "text-outline-width": 2,
+        "text-valign": "center",
+        "text-halign": "center",
+        "width": 22,
+        "height": 22
+      }
+    },
 
-function text(v){
- if(v==null) return "";
- if(Array.isArray(v)) return v.join(" • ");
- return String(v);
+    {
+      selector: "edge",
+      style: {
+        "line-color": "#aaa",
+        "target-arrow-color": "#aaa",
+        "target-arrow-shape": "triangle",
+        "curve-style": "bezier",
+        "width": 1
+      }
+    },
+
+    {
+      selector: ".faded",
+      style: {
+        "opacity": 0.08
+      }
+    }
+
+  ]
+});
+
+
+// --------------------
+// Load graph.json
+// --------------------
+
+fetch("graph.json")
+.then(res => res.json())
+.then(data => {
+
+  // IMPORTANT FIX (your structure is nested)
+  const elements = data[0].json.elements;
+
+  const nodes = [];
+  const edges = [];
+
+  // ---------- NODES ----------
+  elements.nodes.forEach(n => {
+
+    const props = n.data;
+    const label = n.data.labels[0];
+
+    let labelText =
+      props.partners ||
+      props.deliverables_no ||
+      props.valuechain_name ||
+      props.value_chains ||
+      props.demonstrations ||
+      props.innovations_name ||
+      props.phase_id ||
+      n.data.id;
+
+    nodes.push({
+      data: {
+        id: n.data.id,
+        label: label,
+        labelText: labelText,
+        ...props
+      }
+    });
+
+  });
+
+  // ---------- RELATIONSHIPS ----------
+  elements.relationships.forEach(r => {
+
+    edges.push({
+      data: {
+        id: r.data.id,
+        source: r.data.startNode,
+        target: r.data.endNode,
+        label: r.data.type
+      }
+    });
+
+  });
+
+  cy.add([...nodes, ...edges]);
+
+  // Nice force layout
+  cy.layout({
+    name: "cose",
+    animate: true,
+    gravity: 0.6,
+    idealEdgeLength: 90,
+    nodeOverlap: 15,
+    padding: 50
+  }).run();
+
+});
+
+
+// --------------------
+// Hover focus effect
+// --------------------
+
+cy.on("mouseover", "node", function(evt){
+  const node = evt.target;
+  cy.elements().addClass("faded");
+  node.removeClass("faded");
+  node.connectedEdges().removeClass("faded");
+  node.connectedEdges().connectedNodes().removeClass("faded");
+});
+
+cy.on("mouseout", "node", function(){
+  cy.elements().removeClass("faded");
+});
+
+
+// --------------------
+// Buttons
+// --------------------
+
+function resetView() {
+  cy.fit();
 }
 
-// ===== LABEL FIXES =====
-function nodeTitle(d){
- const label=(d.labels && d.labels[0])||"Other";
-
- if(label==="Partner") return text(d.partners)||text(d.partners_legalname)||d.id;
- if(label==="Deliverable") return text(d.deliverables_no)||text(d.deliverables_name)||d.id;
-
- if(label.toLowerCase().includes("circularvaluechain"))
-  return text(d.valuechain_name)||text(d.value_chains)||d.id;
-
- if(label==="Demonstration") return text(d.demonstrations)||text(d.demonstrations_type)||d.id;
-
- if(label==="Innovation") return text(d.innovations_name)||d.id;
-
- return text(d.phase_id)||d.id;
+function showAll() {
+  cy.elements().removeClass("faded");
+  cy.fit();
 }
-
-// ===== HUB ROUTER =====
-function hubIdFor(label){
- const L=label.toLowerCase();
- if(L.includes("circularvaluechain")) return "HUB_CVC";
- if(L==="partner") return "HUB_PARTNER";
- if(L==="deliverable") return "HUB_DELIV";
- if(L==="demonstration") return "HUB_DEMO";
- if(L==="innovation") return "HUB_INNO";
- return null;
-}
-
-// ===== LOAD GRAPH =====
-fetch("graph.json").then(r=>r.json()).then(raw=>{
-
-const elements=raw[0].json.elements;
-const nodes=[];
-const edges=[];
-
-// real nodes
-elements.nodes.forEach(n=>{
- const d=n.data;
- const label=d.labels[0];
- nodes.push({
-  data:{
-   id:d.id,
-   label,
-   name:nodeTitle(d),
-   raw:d,
-   kind:"real"
-  }
- });
-});
-
-// real edges
-elements.relationships.forEach(r=>{
- edges.push({
-  data:{
-   id:r.data.id,
-   source:r.data.startNode,
-   target:r.data.endNode,
-   kind:"real"
-  }
- });
-});
-
-// hub nodes
-HUBS.forEach(h=>{
- nodes.push({
-  data:{
-   id:h.id,
-   label:h.label,
-   name:h.title,
-   kind:"hub"
-  }
- });
-});
-
-cy=cytoscape({
- container:document.getElementById("cy"),
- elements:{nodes,edges},
- layout:{name:"preset"},
- style:[
- {
-  selector:"node",
-  style:{
-   "background-color":e=>COLORS[e.data("label")]||COLORS.Other,
-   "label":"data(name)",
-   "color":"#fff",
-   "text-outline-color":"#000",
-   "text-outline-width":2,
-   "font-size":"11px",
-   "width":26,
-   "height":26
-  }
- },
- {
-  selector:'node[kind="hub"]',
-  style:{
-   "width":85,"height":85,
-   "font-size":"16px",
-   "background-color":COLORS.hub,
-   "font-weight":"bold"
-  }
- },
- {
-  selector:"edge",
-  style:{
-   "line-color":"rgba(220,230,255,.4)",
-   "target-arrow-color":"rgba(220,230,255,.5)",
-   "target-arrow-shape":"triangle",
-   "width":1.8,
-   "curve-style":"bezier"
-  }
- },
- {selector:".hidden",style:{display:"none"}},
- {selector:".fade",style:{opacity:0.07}}
- ]
-});
-
-setup();
-homeView();
-
-// ===== UI =====
-function setup(){
-
-// hover focus
-cy.on("mouseover","node",e=>{
- cy.elements().addClass("fade");
- e.target.closedNeighborhood().removeClass("fade");
-});
-cy.on("mouseout","node",()=>cy.elements().removeClass("fade"));
-
-// click details
-cy.on("tap","node",e=>{
- const n=e.target;
- if(n.data("kind")==="hub") return;
-
- let html="<b>"+n.data("name")+"</b><hr>";
- Object.entries(n.data("raw")).forEach(([k,v])=>{
-  html+=`<div class="k">${k}</div><div class="v">${text(v)}</div>`;
- });
- document.getElementById("details").innerHTML=html;
-});
-
-// double click expand
-let last=0,id=null;
-cy.on("tap","node",e=>{
- const now=Date.now();
- if(now-last<300 && id===e.target.id()){
-  const n=e.target;
-  if(n.data("kind")==="hub") openCategory(n.data("label"));
-  else expandNode(n);
- }
- last=now; id=e.target.id();
-});
-
-// buttons
-btnHome.onclick=homeView;
-btnShowAll.onclick=()=>{
- cy.elements().removeClass("hidden");
- cy.layout({name:"cose",animate:true,fit:false,gravity:0.9}).run();
-};
-
-}
-
-// ===== HOME VIEW =====
-function homeView(){
-
-cy.elements().addClass("hidden");
-cy.nodes('[kind="hub"]').removeClass("hidden");
-cy.edges().addClass("hidden");
-
-const w=cy.width(),h=cy.height();
-
-cy.getElementById("HUB_CVC").position({x:w*0.45,y:h*0.55});
-cy.getElementById("HUB_PARTNER").position({x:w*0.28,y:h*0.35});
-cy.getElementById("HUB_DELIV").position({x:w*0.72,y:h*0.55});
-cy.getElementById("HUB_DEMO").position({x:w*0.55,y:h*0.30});
-cy.getElementById("HUB_INNO").position({x:w*0.55,y:h*0.75});
-
-cy.center(cy.nodes('[kind="hub"]'));
-cy.zoom(1);
-
-}
-
-// ===== OPEN CATEGORY =====
-function openCategory(label){
-
-const hubId=hubIdFor(label);
-if(!hubId) return;
-
-cy.elements().addClass("hidden");
-cy.nodes('[kind="hub"]').removeClass("hidden");
-
-const hub=cy.getElementById(hubId);
-const center=hub.position();
-
-const group=cy.nodes().filter(n=>n.data("kind")==="real" && n.data("label")===label);
-group.removeClass("hidden");
-
-// draw hub arrows
-const newEdges=[];
-group.forEach(n=>{
- const eid="H_"+hubId+"_"+n.id();
- if(cy.getElementById(eid).empty()){
-  newEdges.push({data:{id:eid,source:hubId,target:n.id(),kind:"hubEdge"}});
- }
-});
-if(newEdges.length) cy.add(newEdges);
-
-cy.edges().addClass("hidden");
-cy.edges().filter(e=>e.data("kind")==="hubEdge" && e.data("source")===hubId).removeClass("hidden");
-
-// compact circle layout
-const radius=220;
-group.toArray().forEach((n,i)=>{
- const a=(-Math.PI/2)+(2*Math.PI*i)/group.length;
- n.position({x:center.x+radius*Math.cos(a),y:center.y+radius*Math.sin(a)});
-});
-
-cy.center(hub);
-
-}
-
-// ===== EXPAND NODE =====
-function expandNode(n){
- const neigh=n.closedNeighborhood();
- cy.elements().addClass("hidden");
- neigh.removeClass("hidden");
- cy.center(n);
-}
-
-});
 
 </script>
+
 </body>
 </html>
