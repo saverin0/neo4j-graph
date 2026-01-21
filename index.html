@@ -135,10 +135,14 @@
     if (label === "Deliverable") {
       return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || asNiceText(d.id);
     }
-    if (label === "CircularValueChain") {
-      // Your requested names like Timber/Glass/Concrete value chain
-      return asNiceText(d.value_chains) || asNiceText(d.value_chain) || asNiceText(d.valuechain) || asNiceText(d.id);
-    }
+   if (label === "CircularValueChain") {
+  return asNiceText(d.valuechain_name)
+    || asNiceText(d.valuechain)
+    || asNiceText(d.value_chains)
+    || asNiceText(d.value_chain)
+    || asNiceText(d.id);
+}
+
     return asNiceText(d.phase_id) || asNiceText(d.demonstrations) || asNiceText(d.id);
   }
 
@@ -445,3 +449,4 @@
 </script>
 </body>
 </html>
+
