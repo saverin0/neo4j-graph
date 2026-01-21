@@ -1,504 +1,389 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Graph Explorer</title>
+<meta charset="utf-8"/>
+<title>Graph Explorer</title>
 
-  <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
 
-  <style>
-    html, body { width:100%; height:100%; margin:0; font-family: Arial, sans-serif; background:#070A12; }
-    #app { display:flex; width:100%; height:100%; }
+<style>
+html,body {
+  margin:0;
+  height:100%;
+  background:#070b18;
+  font-family:Arial,Helvetica,sans-serif;
+}
 
-    #cy {
-      flex: 1;
-      height: 100%;
-      background: radial-gradient(circle at 30% 20%, #0b1230 0%, #070A12 45%, #050711 100%);
-    }
+#topbar {
+  position:fixed;
+  top:12px;
+  left:12px;
+  right:12px;
+  height:56px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:rgba(10,15,35,.85);
+  backdrop-filter: blur(10px);
+  border-radius:14px;
+  padding:10px 14px;
+  box-shadow:0 0 30px rgba(0,0,0,.7);
+  z-index:10;
+  color:#fff;
+}
 
-    #side {
-      width: 360px;
-      border-left: 1px solid rgba(255,255,255,0.08);
-      padding: 12px;
-      box-sizing: border-box;
-      overflow: auto;
-      background: linear-gradient(180deg, rgba(15,18,34,0.98), rgba(8,10,18,0.98));
-      color: #E9ECFF;
-    }
+.btn {
+  background:#141b3c;
+  border:1px solid #2a3380;
+  color:#fff;
+  padding:7px 14px;
+  border-radius:12px;
+  cursor:pointer;
+}
+.btn:hover { background:#1c255c; }
 
-    #toolbar {
-      position: fixed;
-      top: 12px; left: 12px;
-      z-index: 999;
-      background: rgba(10,12,22,0.85);
-      border: 1px solid rgba(255,255,255,0.10);
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.45);
-      padding: 10px 12px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      backdrop-filter: blur(8px);
-      color: #E9ECFF;
-      max-width: 980px;
-    }
+#search {
+  flex:1;
+  background:#0f1433;
+  border:1px solid #2a3380;
+  border-radius:12px;
+  padding:8px 12px;
+  color:#fff;
+}
 
-    .btn {
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.06);
-      color: #E9ECFF;
-      padding: 7px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .btn:hover { background: rgba(255,255,255,0.12); }
+#app {
+  display:flex;
+  height:100%;
+}
 
-    #search {
-      width: 280px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.06);
-      color: #E9ECFF;
-      outline: none;
-    }
-    #search::placeholder { color: rgba(233,236,255,0.6); }
+#cy {
+  flex:1;
+}
 
-    h3 { margin: 8px 0 10px; }
-    .muted { color: rgba(233,236,255,0.65); font-size: 12px; line-height: 1.4; }
-    .kv { margin: 10px 0; }
-    .k { font-size: 12px; color: rgba(233,236,255,0.65); }
-    .v { font-size: 13px; word-break: break-word; color: #E9ECFF; }
-    code { background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 6px; }
-    hr { border: 0; border-top: 1px solid rgba(255,255,255,0.10); margin: 10px 0; }
-  </style>
+#side {
+  width:320px;
+  padding:12px;
+  background:#090f25;
+  color:#eee;
+  border-left:1px solid #1b2350;
+}
+
+.small { color:#aaa; font-size:12px; }
+.k { color:#7fa3ff; font-size:12px; }
+.v { margin-bottom:8px; }
+.hidden { display:none; }
+
+.legend {
+  position:fixed;
+  bottom:12px;
+  left:12px;
+  background:rgba(10,15,35,.9);
+  padding:10px 14px;
+  border-radius:12px;
+  color:#ddd;
+  font-size:13px;
+}
+.legend div { margin:4px 0; }
+.dot { display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px; }
+
+</style>
 </head>
 
 <body>
-  <div id="toolbar">
-    <div style="font-weight:700;">⚡ Graph Explorer</div>
-    <div class="btn" id="btnHome">Home</div>
-    <div class="btn" id="btnShowAll">Show all</div>
-    <input id="search" placeholder="Search (any property), press Enter" />
-    <div class="muted">Hover = focus • Single click = details • Double click = expand</div>
-  </div>
 
-  <div id="app">
-    <div id="cy"></div>
-    <div id="side">
-      <h3>Details</h3>
-      <div id="details" class="muted">Home shows 3 hubs. Double click one hub to open that category.</div>
-      <hr />
-      <div class="muted">Tip: Hover a node to reduce clutter.</div>
+<div id="topbar">
+  ⚡ <b>Graph Explorer</b>
+  <button class="btn" onclick="homeView()">Home</button>
+  <button class="btn" onclick="showAll()">Show all</button>
+  <input id="search" placeholder="Search (any property) and press Enter">
+  <span class="small">Hover = focus • Click = details • Double click = expand</span>
+</div>
+
+<div id="app">
+  <div id="cy"></div>
+  <div id="side">
+    <h3>Details</h3>
+    <div id="details" class="small">
+      Clean landing view loaded.<br>
+      Double click hubs to explore categories.
     </div>
   </div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#00E5FF"></span> CircularValueChain</div>
+  <div><span class="dot" style="background:#FF2BD6"></span> Partner</div>
+  <div><span class="dot" style="background:#9BFF3A"></span> Deliverable</div>
+  <div><span class="dot" style="background:#FFD34A"></span> Demonstration</div>
+  <div><span class="dot" style="background:#FF7A00"></span> Innovation</div>
+</div>
 
 <script>
-  // Colors
+
+// COLORS
 const COLORS = {
-  hub: "#B8BFFF",
-  CircularValueChain: "#00E5FF",
-  Partner: "#FF2BD6",
-  Deliverable: "#9BFF3A",
-  Demonstration: "#FFD34A",
-  Innovation: "#FF7A00",   // new distinct color
-  Other: "#A6ADFF"
+  hub:"#B8BFFF",
+  CircularValueChain:"#00E5FF",
+  Partner:"#FF2BD6",
+  Deliverable:"#9BFF3A",
+  Demonstration:"#FFD34A",
+  Innovation:"#FF7A00",
+  Other:"#8892ff"
 };
 
-  // Visual-only hubs
+// HUB DEFINITIONS
 const HUBS = [
-  { id: "HUB_CVC", label: "CircularValueChain", title: "Circular Value Chains" },
-  { id: "HUB_PARTNER", label: "Partner", title: "Partners" },
-  { id: "HUB_DELIV", label: "Deliverables", title: "Deliverables" },   // hub label can be any text
-  { id: "HUB_DEMO", label: "Demonstration", title: "Demonstrations" },
-  { id: "HUB_INNO", label: "Innovation", title: "Innovations" }
+ {id:"HUB_CVC",label:"CircularValueChain",title:"Circular Value Chains"},
+ {id:"HUB_PARTNER",label:"Partner",title:"Partners"},
+ {id:"HUB_DELIV",label:"Deliverable",title:"Deliverables"},
+ {id:"HUB_DEMO",label:"Demonstration",title:"Demonstrations"},
+ {id:"HUB_INNO",label:"Innovation",title:"Innovations"}
 ];
-  let cy;
 
-  function unwrapNeo4jBrowserJson(raw) {
-    if (Array.isArray(raw) && raw[0] && raw[0].json && raw[0].json.elements) return raw[0].json.elements;
-    return raw?.elements ?? null;
-  }
+let cy;
 
-  // ---- Title helpers (fix IDs showing) ----
-  function asNiceText(v) {
-    if (v == null) return "";
-    if (Array.isArray(v)) return v.filter(Boolean).join(" • ");
-    if (typeof v === "object") return JSON.stringify(v);
-    return String(v);
-  }
-
- function pickNodeLabel(d) {
-  const label = (d.labels && d.labels[0]) || "Other";
-
-  if (label === "Partner") return asNiceText(d.partners) || asNiceText(d.partners_legalname) || asNiceText(d.id);
-
-  if (label === "Deliverable") return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || asNiceText(d.id);
-
-  if ((label || "").toLowerCase().includes("circularvaluechain")) {
-    return asNiceText(d.valuechain_name) || asNiceText(d.value_chains) || asNiceText(d.id);
-  }
-
-  if (label === "Demonstration") {
-    return asNiceText(d.demonstrations) || asNiceText(d.demonstrations_type) || asNiceText(d.id);
-  }
-
-  if (label === "Innovation") {
-    return asNiceText(d.innovations_name) || asNiceText(d.id);
-  }
-
-  return asNiceText(d.phase_id) || asNiceText(d.id);
+// TEXT CLEANER
+function asNiceText(v){
+ if(v===undefined||v===null) return "";
+ if(Array.isArray(v)) return v.join(", ");
+ return String(v);
 }
 
-if ((label || "").toLowerCase().includes("circularvaluechain")) {
-  return asNiceText(d.valuechain_name)
-    || asNiceText(d["valuechain_name"])
-    || asNiceText(d.valuechainName)
-    || asNiceText(d.value_chains)
-    || asNiceText(d.value_chain)
-    || asNiceText(d.id);
-}
-    return asNiceText(d.phase_id) || asNiceText(d.demonstrations) || asNiceText(d.id);
-  }
+// LABEL PICKER
+function pickNodeLabel(d){
+ const label=(d.labels&&d.labels[0])||"Other";
 
-  function colorForLabel(label) {
-    return COLORS[label] || COLORS.Other;
-  }
+ if(label==="Partner") return asNiceText(d.partners)||asNiceText(d.partners_legalname)||d.id;
+ if(label==="Deliverable") return asNiceText(d.deliverables_no)||asNiceText(d.deliverables_name)||d.id;
+ if(label.toLowerCase().includes("circularvaluechain"))
+   return asNiceText(d.valuechain_name)||asNiceText(d.value_chains)||d.id;
+ if(label==="Demonstration") return asNiceText(d.demonstrations)||d.id;
+ if(label==="Innovation") return asNiceText(d.innovations_name)||d.id;
 
-  // ---- Details panel ----
-  function showDetails(ele) {
-    const d = ele.data();
-    const head = `
-      <div style="font-weight:700; font-size:16px; margin-bottom:6px;">${d.title || d.label || "Node"}</div>
-      <div class="muted">Type: <code>${d.label || "Node"}</code></div>
-      <hr />
-    `;
-
-    if (d.kind === "hub") {
-      document.getElementById("details").innerHTML = head + `
-        <div class="muted">
-          Category hub (visual-only).<br><br>
-          <b>Double click</b> to reveal nodes in this category.
-        </div>`;
-      return;
-    }
-
-    const rows = Object.entries(d)
-      .filter(([k]) => !["color","title","kind"].includes(k))
-      .sort((a,b) => a[0].localeCompare(b[0]))
-      .map(([k,v]) => `<div class="kv"><div class="k">${k}</div><div class="v">${asNiceText(v)}</div></div>`)
-      .join("");
-
-    document.getElementById("details").innerHTML = head + (rows || `<div class="muted">No properties</div>`);
-  }
-
-  // ---- Clutter control: hover focus ----
-  function enableHoverFocus() {
-    cy.on("mouseover", "node", (evt) => {
-      const n = evt.target;
-      cy.elements().addClass("dim");
-      n.closedNeighborhood().removeClass("dim").addClass("hi");
-    });
-    cy.on("mouseout", "node", () => {
-      cy.elements().removeClass("dim hi");
-    });
-  }
-
-  // ---- Home: only 3 hubs ----
-  function homeView() {
-    cy.elements().addClass("hidden");
-    cy.$('node[kind = "hub"]').removeClass("hidden");
-    cy.edges().addClass("hidden");
-
-    // Place hubs nicely in a triangle (no layout chaos)
-    const w = cy.width(), h = cy.height();
-    cy.getElementById("HUB_PARTNER").position({ x: w*0.28, y: h*0.35 });
-    cy.getElementById("HUB_CVC").position({ x: w*0.28, y: h*0.70 });
-    cy.getElementById("HUB_DELIV").position({ x: w*0.70, y: h*0.55 });
-
-    // Keep stable viewport
-    cy.zoom(1);
-    cy.center(cy.$('node[kind = "hub"]'));
-
-    document.getElementById("details").innerHTML =
-      `<div class="muted">Home loaded: 3 hubs. Double click a hub to reveal that category.</div>`;
-  }
-function hubIdFor(label) {
-  const L = (label || "").toLowerCase();
-  if (L.includes("circularvaluechain")) return "HUB_CVC";
-  if (L === "partner") return "HUB_PARTNER";
-  if (L === "deliverable") return "HUB_DELIV";
-  if (L === "demonstration") return "HUB_DEMO";
-  if (L === "innovation") return "HUB_INNO";
-  return null;
+ return asNiceText(d.phase_id)||d.id;
 }
 
-  // ---- Reveal category nodes in a tight circle around the hub ----
-  
-function revealCategory(label) {
-  const hubId = hubIdFor(label);
-  if (!hubId) return;
-
-  // Hide everything except hubs + this category nodes
-  cy.elements().addClass("hidden");
-  cy.$('node[kind="hub"]').removeClass("hidden");
-
-  const hub = cy.getElementById(hubId);
-  const center = hub.position();
-
-  const group = cy.nodes().filter(n => n.data("kind")==="real" && n.data("label")===label);
-  group.removeClass("hidden");
-
-  // Create synthetic edges hub -> each node (once)
-  const newEdges = [];
-  group.forEach(n => {
-    const eid = `HE_${hubId}_${n.id()}`;
-    if (cy.getElementById(eid).empty()) {
-      newEdges.push({
-        group: "edges",
-        data: { id: eid, source: hubId, target: n.id(), label: "", kind: "hubEdge" }
-      });
-    }
-  });
-  if (newEdges.length) cy.add(newEdges);
-
-  // Show only hub edges for this hub
-  cy.edges().addClass("hidden");
-  cy.edges()
-    .filter(e => e.data("kind")==="hubEdge" && e.data("source")===hubId)
-    .removeClass("hidden");
-
-  // Place nodes in a compact ring around the hub
-  const nodes = group.toArray();
-  const radius = 220;
-  const startAngle = -Math.PI / 2;
-
-  nodes.forEach((n, i) => {
-    const a = startAngle + (2*Math.PI*i)/Math.max(nodes.length, 1);
-    n.position({ x: center.x + radius*Math.cos(a), y: center.y + radius*Math.sin(a) });
-  });
-
-  cy.animate({ center: { eles: hub } }, { duration: 200 });
-
-  document.getElementById("details").innerHTML =
-    `<div class="muted"><b>${label}</b> opened. Single click nodes for details. Double click a node to expand neighbors.</div>`;
+// HUB MAP
+function hubIdFor(label){
+ const L=(label||"").toLowerCase();
+ if(L.includes("circularvaluechain")) return "HUB_CVC";
+ if(L==="partner") return "HUB_PARTNER";
+ if(L==="deliverable") return "HUB_DELIV";
+ if(L==="demonstration") return "HUB_DEMO";
+ if(L==="innovation") return "HUB_INNO";
+ return null;
 }
 
-  // ---- Expand real neighbors without global layout ----
-  function expandRealNeighbors(node) {
-    // Reveal only 1-hop around the node
-    node.removeClass("hidden");
-    const realEdges = node.connectedEdges().filter(e => e.data("kind")!=="hubEdge");
-    const neighbors = realEdges.connectedNodes();
+// LOAD GRAPH JSON
+fetch("graph.json")
+.then(r=>r.json())
+.then(raw=>{
 
-    realEdges.removeClass("hidden");
-    neighbors.removeClass("hidden");
+const elements=[];
 
-    // Put newly revealed neighbors close to clicked node (no messy global re-layout)
-    const c = node.position();
-    const neigh = neighbors.toArray().filter(n => n.id() !== node.id());
-    const r = 180;
+// REAL NODES
+raw[0].json.elements.nodes.forEach(n=>{
+ elements.push({
+   data:{
+     id:n.data.id,
+     label:n.data.labels[0],
+     name:pickNodeLabel(n.data),
+     raw:n.data,
+     kind:"real"
+   }
+ });
+});
 
-    neigh.forEach((n, i) => {
-      // only reposition nodes that were hidden before (to avoid jumping)
-      // if a node already has a position, we leave it
-      if (!n.data("_placed")) {
-        const a = (2*Math.PI*i)/Math.max(neigh.length, 1);
-        n.position({ x: c.x + r*Math.cos(a), y: c.y + r*Math.sin(a) });
-        n.data("_placed", true);
-      }
-    });
+// REAL EDGES
+raw[0].json.elements.relationships.forEach(r=>{
+ elements.push({
+   data:{
+     id:r.data.id,
+     source:r.data.startNode,
+     target:r.data.endNode,
+     kind:"realEdge"
+   }
+ });
+});
 
-    // No zoom change; only small center nudge
-    cy.animate({ center: { eles: node } }, { duration: 180 });
+// HUB NODES
+HUBS.forEach(h=>{
+ elements.push({
+   data:{
+     id:h.id,
+     name:h.title,
+     label:h.label,
+     kind:"hub"
+   }
+ });
+});
+
+// CYTOSCAPE INIT
+cy=cytoscape({
+ container:document.getElementById("cy"),
+ elements,
+ layout:{name:"preset"},
+ style:[
+ {
+  selector:"node",
+  style:{
+    "background-color":ele=>COLORS[ele.data("label")]||COLORS.Other,
+    "label":"data(name)",
+    "color":"#fff",
+    "font-size":"11px",
+    "text-outline-color":"#000",
+    "text-outline-width":2,
+    "width":26,
+    "height":26
   }
-
-  // ---- Double click detection ----
-  let lastTapTime = 0;
-  let lastTapId = null;
-
-  function handleTap(ele) {
-    const now = Date.now();
-    const id = ele.id();
-    const isDouble = (lastTapId === id && (now - lastTapTime) < 350);
-    lastTapTime = now;
-    lastTapId = id;
-
-    if (!isDouble) {
-      showDetails(ele);
-      return;
-    }
-
-    const d = ele.data();
-    if (d.kind === "hub") revealCategory(d.label);
-    else expandRealNeighbors(ele);
+ },
+ {
+  selector:'node[kind="hub"]',
+  style:{
+    "width":85,
+    "height":85,
+    "font-size":"16px",
+    "background-color":COLORS.hub,
+    "font-weight":"bold"
   }
-
-  async function main() {
-    const res = await fetch("./graph.json");
-    const raw = await res.json();
-    const elements = unwrapNeo4jBrowserJson(raw);
-
-    if (!elements?.nodes || !elements?.edges) {
-      document.getElementById("details").innerHTML =
-        "<b>Error</b><br><br>graph.json could not be loaded. Make sure it is in the repo root.";
-      return;
-    }
-
-    // Real nodes
-    const realNodes = elements.nodes.map(n => {
-      const d = n.data || {};
-      const label = (d.labels && d.labels[0]) || "Other";
-      return {
-        data: {
-          ...d,
-          label,
-          title: pickNodeLabel(d),
-          color: colorForLabel(label),
-          kind: "real"
-        }
-      };
-    });
-
-    // Real edges
-    const realEdges = elements.edges.map(e => {
-      const d = e.data || {};
-      return {
-        data: {
-          ...d,
-          label: d.type || "REL",
-          kind: "realEdge"
-        }
-      };
-    });
-
-    // Hub nodes
-    const hubNodes = HUBS.map(h => ({
-      data: { id: h.id, label: h.label, title: h.title, color: COLORS.hub, kind: "hub" }
-    }));
-
-    cy = cytoscape({
-      container: document.getElementById("cy"),
-      elements: { nodes: [...hubNodes, ...realNodes], edges: realEdges },
-      style: [
-        { selector: ".hidden", style: { "display": "none" } },
-        { selector: ".dim", style: { "opacity": 0.10 } },
-        { selector: ".hi", style: { "opacity": 1 } },
-
-        {
-          selector: "node",
-          style: {
-            "background-color": "data(color)",
-            "width": 18, "height": 18,
-            "border-width": 2,
-            "border-color": "data(color)",
-            "label": "data(title)",
-            "color": "#E9ECFF",
-            "font-size": 12,
-            "text-wrap": "wrap",
-            "text-max-width": 130,
-            "text-outline-width": 3,
-            "text-outline-color": "#050711"
-          }
-        },
-        {
-          selector: 'node[kind = "hub"]',
-          style: {
-            "width": 88, "height": 88,
-            "border-width": 3,
-            "font-size": 18,
-            "text-max-width": 200
-          }
-        },
-
-        {
-          selector: "edge",
-          style: {
-            "curve-style": "bezier",
-            "line-color": "rgba(180,200,255,0.22)",
-            "width": 2,
-            "target-arrow-shape": "triangle",
-            "target-arrow-color": "rgba(180,200,255,0.35)",
-            // keep edge labels off = less clutter
-            "label": "",
-          }
-        },
-        {
-          selector: 'edge[kind = "hubEdge"]',
-          style: {
-            "line-color": "rgba(233,236,255,0.22)",
-            "target-arrow-color": "rgba(233,236,255,0.28)",
-            "width": 2
-          }
-        }
-      ],
-      wheelSensitivity: 0.15
-    });
-
-    // Prevent extreme zoom-outs
-    cy.minZoom(0.35);
-    cy.maxZoom(2.5);
-
-    enableHoverFocus();
-
-    cy.on("tap", "node", (evt) => handleTap(evt.target));
-
-    document.getElementById("btnHome").onclick = () => homeView();
-    document.getElementById("btnShowAll").onclick = () => {
-      cy.elements().removeClass("hidden");
-      // no global layout here to avoid chaos
-      document.getElementById("details").innerHTML =
-        `<div class="muted">All nodes shown. Hover a node to focus. Double click nodes to expand locally.</div>`;
-    };
-
-    document.getElementById("search").addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") return;
-      const q = e.target.value.trim().toLowerCase();
-      if (!q) return;
-
-      const hit = cy.nodes().filter(n => {
-        const d = n.data();
-        if (d.kind !== "real") return false;
-        return Object.values(d).some(v => asNiceText(v).toLowerCase().includes(q));
-      }).first();
-
-      if (hit && hit.length) {
-        hit.removeClass("hidden");
-        showDetails(hit);
-        cy.animate({ center: { eles: hit } }, { duration: 220 });
-      }
-    });
-
-    homeView();
+ },
+ {
+  selector:"edge",
+  style:{
+    "line-color":"#ccc",
+    "target-arrow-color":"#ccc",
+    "target-arrow-shape":"triangle",
+    "width":1.5,
+    "curve-style":"bezier"
   }
-function homeView() {
-  cy.elements().addClass("hidden");
-  cy.$('node[kind="hub"]').removeClass("hidden");
-  cy.edges().addClass("hidden");
+ },
+ {
+  selector:".hidden",
+  style:{ "display":"none" }
+ },
+ {
+  selector:".faded",
+  style:{ "opacity":0.05 }
+ }
+ ]
+});
 
-  const w = cy.width(), h = cy.height();
+homeView();
 
-  cy.getElementById("HUB_CVC").position({ x: w*0.35, y: h*0.60 });
-  cy.getElementById("HUB_PARTNER").position({ x: w*0.30, y: h*0.35 });
-  cy.getElementById("HUB_DELIV").position({ x: w*0.70, y: h*0.55 });
-  cy.getElementById("HUB_DEMO").position({ x: w*0.55, y: h*0.30 });
-  cy.getElementById("HUB_INNO").position({ x: w*0.60, y: h*0.75 });
+// ---------- INTERACTION ----------
 
-  cy.zoom(1);
-  cy.center(cy.$('node[kind="hub"]'));
+// HOME VIEW
+function homeView(){
+ cy.elements().addClass("hidden");
+ cy.nodes('[kind="hub"]').removeClass("hidden");
 
-  document.getElementById("details").innerHTML =
-    `<div class="muted">Home loaded: 5 hubs. Double click a hub to reveal that category.</div>`;
+ const w=cy.width(),h=cy.height();
+
+ cy.getElementById("HUB_CVC").position({x:w*0.45,y:h*0.55});
+ cy.getElementById("HUB_PARTNER").position({x:w*0.30,y:h*0.35});
+ cy.getElementById("HUB_DELIV").position({x:w*0.70,y:h*0.55});
+ cy.getElementById("HUB_DEMO").position({x:w*0.55,y:h*0.30});
+ cy.getElementById("HUB_INNO").position({x:w*0.55,y:h*0.75});
+
+ cy.zoom(1);
+ cy.center(cy.nodes('[kind="hub"]'));
+
+ document.getElementById("details").innerHTML="Clean landing view loaded.";
 }
 
-  main().catch(err => {
-    console.error(err);
-    document.getElementById("details").innerHTML = "<b>Error</b><br><br>" + String(err);
-  });
+// SHOW ALL
+function showAll(){
+ cy.elements().removeClass("hidden");
+ cy.layout({name:"cose",animate:true,gravity:1}).run();
+}
+
+// REVEAL CATEGORY
+function revealCategory(label){
+ const hubId=hubIdFor(label);
+ if(!hubId) return;
+
+ cy.elements().addClass("hidden");
+ cy.nodes('[kind="hub"]').removeClass("hidden");
+
+ const hub=cy.getElementById(hubId);
+ const center=hub.position();
+
+ const group=cy.nodes().filter(n=>n.data("kind")==="real"&&n.data("label")===label);
+ group.removeClass("hidden");
+
+ cy.edges().addClass("hidden");
+
+ const radius=220;
+ const nodes=group.toArray();
+
+ nodes.forEach((n,i)=>{
+   const a=(2*Math.PI*i)/Math.max(nodes.length,1);
+   n.position({
+     x:center.x+radius*Math.cos(a),
+     y:center.y+radius*Math.sin(a)
+   });
+ });
+
+ cy.center(hub);
+}
+
+// CLICK → DETAILS
+cy.on("tap","node",evt=>{
+ const n=evt.target;
+ if(n.data("kind")==="hub") return;
+
+ const d=n.data("raw");
+ let html=`<b>${n.data("name")}</b><br><br>`;
+
+ Object.entries(d).forEach(([k,v])=>{
+   html+=`<div class="k">${k}</div><div class="v">${asNiceText(v)}</div>`;
+ });
+
+ document.getElementById("details").innerHTML=html;
+});
+
+// DOUBLE CLICK → EXPAND
+let lastTap=0;
+cy.on("tap","node",evt=>{
+ const now=Date.now();
+ if(now-lastTap<250){
+   const n=evt.target;
+   if(n.data("kind")==="hub"){
+     revealCategory(n.data("label"));
+   } else {
+     const neigh=n.closedNeighborhood();
+     cy.elements().addClass("hidden");
+     neigh.removeClass("hidden");
+     cy.center(n);
+   }
+ }
+ lastTap=now;
+});
+
+// HOVER FOCUS
+cy.on("mouseover","node",evt=>{
+ const n=evt.target;
+ cy.elements().addClass("faded");
+ n.closedNeighborhood().removeClass("faded");
+});
+
+cy.on("mouseout","node",()=>{
+ cy.elements().removeClass("faded");
+});
+
+// SEARCH
+document.getElementById("search").addEventListener("keydown",e=>{
+ if(e.key==="Enter"){
+   const q=e.target.value.toLowerCase();
+   cy.elements().addClass("hidden");
+   cy.nodes().filter(n=>{
+     const raw=n.data("raw");
+     return raw&&Object.values(raw).some(v=>String(v).toLowerCase().includes(q));
+   }).removeClass("hidden");
+ }
+});
+
+});
 </script>
 </body>
 </html>
-
-
-
