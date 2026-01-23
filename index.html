@@ -13,7 +13,32 @@
     #cy {
       flex: 1;
       height: 100%;
+      position: relative;
       background: radial-gradient(circle at 30% 20%, #0b1230 0%, #070A12 45%, #050711 100%);
+      overflow: hidden;
+    }
+
+    /* Subtle animated aurora background (Graphistry-ish vibe) */
+    #cy::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(circle at 15% 25%, rgba(0,229,255,.12) 0%, transparent 45%),
+        radial-gradient(circle at 85% 30%, rgba(255,43,214,.12) 0%, transparent 45%),
+        radial-gradient(circle at 60% 85%, rgba(155,255,58,.10) 0%, transparent 50%),
+        radial-gradient(circle at 30% 80%, rgba(255,211,74,.08) 0%, transparent 55%),
+        radial-gradient(circle at 80% 75%, rgba(255,122,0,.08) 0%, transparent 55%);
+      filter: blur(2px);
+      animation: drift 10s ease-in-out infinite alternate;
+      pointer-events:none;
+      z-index:0;
+    }
+    #cy > canvas { position:relative; z-index:1; }
+
+    @keyframes drift {
+      from { transform: translate3d(-6px,-4px,0) scale(1.02); }
+      to   { transform: translate3d( 8px, 6px,0) scale(1.05); }
     }
 
     #side {
@@ -72,6 +97,18 @@
     .v { font-size: 13px; word-break: break-word; color: #E9ECFF; }
     code { background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 6px; }
     hr { border: 0; border-top: 1px solid rgba(255,255,255,0.10); margin: 10px 0; }
+
+    /* Tiny legend pills */
+    .pill {
+      display:inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      margin-right: 6px;
+      margin-top: 6px;
+    }
   </style>
 </head>
 
@@ -90,11 +127,18 @@
       <h3>Details</h3>
       <div id="details" class="muted">Home shows hubs. Double click one hub to open that category.</div>
       <hr />
-      <div class="muted">Tip: Hover a node to reduce clutter.</div>
+      <div class="muted">
+        <div class="pill">CVC</div>
+        <div class="pill">Partner</div>
+        <div class="pill">Deliverable</div>
+        <div class="pill">Demo</div>
+        <div class="pill">Innovation</div>
+      </div>
     </div>
   </div>
 
 <script>
+  // ===== Colors (neon palette) =====
   const COLORS = {
     hub: "#B8BFFF",
     CircularValueChain: "#00E5FF",
@@ -105,6 +149,7 @@
     Other: "#A3A9FF"
   };
 
+  // Visual-only hubs (5)
   const HUBS = [
     { id: "HUB_CVC", label: "CircularValueChain", title: "Circular Value Chains" },
     { id: "HUB_PARTNER", label: "Partner", title: "Partners" },
@@ -127,6 +172,7 @@
     return String(v);
   }
 
+  // ---- Titles (no IDs if we can help it) ----
   function pickNodeLabel(d) {
     const label = (d.labels && d.labels[0]) || "Other";
 
@@ -147,10 +193,22 @@
     return asNiceText(d.phase_id) || asNiceText(d.id);
   }
 
+  // ---- Size by type (Graphistry-ish emphasis) ----
+  function sizeForLabel(label) {
+    if (!label) return 16;
+    if (label.toLowerCase().includes("circularvaluechain")) return 20;
+    if (label === "Partner") return 22;
+    if (label === "Deliverable") return 20;
+    if (label === "Demonstration") return 19;
+    if (label === "Innovation") return 19;
+    return 16;
+  }
+
   function colorForLabel(label) {
     return COLORS[label] || COLORS.Other;
   }
 
+  // ---- Details panel ----
   function showDetails(ele) {
     const d = ele.data();
     const head = `
@@ -169,7 +227,7 @@
     }
 
     const rows = Object.entries(d)
-      .filter(([k]) => !["color","title","kind","_placed"].includes(k))
+      .filter(([k]) => !["color","title","kind","_placed","size"].includes(k))
       .sort((a,b) => a[0].localeCompare(b[0]))
       .map(([k,v]) => `<div class="kv"><div class="k">${k}</div><div class="v">${asNiceText(v)}</div></div>`)
       .join("");
@@ -177,6 +235,7 @@
     document.getElementById("details").innerHTML = head + (rows || `<div class="muted">No properties</div>`);
   }
 
+  // ---- Clutter control: hover focus ----
   function enableHoverFocus() {
     cy.on("mouseover", "node", (evt) => {
       const n = evt.target;
@@ -188,6 +247,7 @@
     });
   }
 
+  // ---- hub id router ----
   function hubIdFor(label) {
     const L = (label || "").toLowerCase();
     if (L.includes("circularvaluechain")) return "HUB_CVC";
@@ -198,17 +258,19 @@
     return null;
   }
 
+  // ---- Home: only hubs ----
   function homeView() {
     cy.elements().addClass("hidden");
     cy.$('node[kind = "hub"]').removeClass("hidden");
     cy.edges().addClass("hidden");
 
+    // More intentional composition (pentagon-ish)
     const w = cy.width(), h = cy.height();
-    cy.getElementById("HUB_PARTNER").position({ x: w*0.26, y: h*0.30 });
-    cy.getElementById("HUB_CVC").position({ x: w*0.26, y: h*0.70 });
-    cy.getElementById("HUB_DELIV").position({ x: w*0.68, y: h*0.50 });
-    cy.getElementById("HUB_DEMO").position({ x: w*0.50, y: h*0.25 });
-    cy.getElementById("HUB_INNO").position({ x: w*0.50, y: h*0.78 });
+    cy.getElementById("HUB_CVC").position({ x: w*0.30, y: h*0.55 });
+    cy.getElementById("HUB_PARTNER").position({ x: w*0.26, y: h*0.32 });
+    cy.getElementById("HUB_DELIV").position({ x: w*0.72, y: h*0.42 });
+    cy.getElementById("HUB_DEMO").position({ x: w*0.52, y: h*0.22 });
+    cy.getElementById("HUB_INNO").position({ x: w*0.55, y: h*0.78 });
 
     cy.zoom(1);
     cy.center(cy.$('node[kind = "hub"]'));
@@ -217,6 +279,7 @@
       `<div class="muted">Home loaded: hubs. Double click a hub to reveal that category.</div>`;
   }
 
+  // ---- Reveal category nodes in a tight circle around the hub ----
   function revealCategory(label) {
     const hubId = hubIdFor(label);
     if (!hubId) return;
@@ -230,6 +293,7 @@
     const group = cy.nodes().filter(n => n.data("kind")==="real" && n.data("label")===label);
     group.removeClass("hidden");
 
+    // Create synthetic edges hub -> each node (once)
     const newEdges = [];
     group.forEach(n => {
       const eid = `HE_${hubId}_${n.id()}`;
@@ -239,24 +303,27 @@
     });
     if (newEdges.length) cy.add(newEdges);
 
+    // Show only hub edges for this hub
     cy.edges().addClass("hidden");
     cy.edges().filter(e => e.data("kind")==="hubEdge" && e.data("source")===hubId).removeClass("hidden");
 
+    // Compact ring around hub
     const nodes = group.toArray();
-    const radius = 220;
+    const radius = 240; // a bit wider for drama + readability
     const startAngle = -Math.PI / 2;
     nodes.forEach((n, i) => {
       const a = startAngle + (2*Math.PI*i)/Math.max(nodes.length, 1);
       n.position({ x: center.x + radius*Math.cos(a), y: center.y + radius*Math.sin(a) });
     });
 
-    cy.animate({ center: { eles: hub } }, { duration: 200 });
+    // Cinematic fit (subtle)
+    cy.animate({ fit: { eles: group.union(hub), padding: 90 } }, { duration: 260 });
 
     document.getElementById("details").innerHTML =
       `<div class="muted"><b>${label}</b> opened. Single click nodes for details. Double click a node to expand its real neighbors.</div>`;
   }
 
-  // ✅ FIXED: only show clicked node’s own edges + neighbors (like before)
+  // ---- Expand real neighbors (keeps your behavior) ----
   function expandRealNeighbors(node) {
     node.removeClass("hidden");
 
@@ -266,9 +333,10 @@
     realEdges.removeClass("hidden");
     neighbors.removeClass("hidden");
 
+    // Place newly revealed neighbors near clicked node (no global re-layout)
     const c = node.position();
     const neigh = neighbors.toArray().filter(n => n.id() !== node.id());
-    const r = 180;
+    const r = 190;
 
     neigh.forEach((n, i) => {
       if (!n.data("_placed")) {
@@ -281,6 +349,7 @@
     cy.animate({ center: { eles: node } }, { duration: 180 });
   }
 
+  // ---- Double click detection ----
   let lastTapTime = 0;
   let lastTapId = null;
 
@@ -313,6 +382,7 @@
       return;
     }
 
+    // Real nodes
     const realNodes = elements.nodes.map(n => {
       const d = n.data || {};
       const label = (d.labels && d.labels[0]) || "Other";
@@ -322,11 +392,13 @@
           label,
           title: pickNodeLabel(d),
           color: colorForLabel(label),
+          size: sizeForLabel(label),
           kind: "real"
         }
       };
     });
 
+    // Real edges
     const realEdges = edgeList.map(e => {
       const d = e.data || {};
       return {
@@ -340,8 +412,9 @@
       };
     });
 
+    // Hub nodes
     const hubNodes = HUBS.map(h => ({
-      data: { id: h.id, label: h.label, title: h.title, color: COLORS.hub, kind: "hub" }
+      data: { id: h.id, label: h.label, title: h.title, color: COLORS.hub, size: 110, kind: "hub" }
     }));
 
     cy = cytoscape({
@@ -350,43 +423,75 @@
       style: [
         { selector: ".hidden", style: { "display": "none" } },
         { selector: ".dim", style: { "opacity": 0.10 } },
-        { selector: ".hi", style: { "opacity": 1 } },
 
+        /* Focus glow (Graphistry-ish spotlight) */
         {
-          selector: "node",
+          selector: ".hi",
+          style: {
+            "opacity": 1,
+            "shadow-blur": 25,
+            "shadow-opacity": 0.70,
+            "shadow-color": "#ffffff"
+          }
+        },
+
+        /* Normal nodes */
+        {
+          selector: 'node[kind="real"]',
           style: {
             "background-color": "data(color)",
-            "width": 18, "height": 18,
+            "width": "data(size)",
+            "height": "data(size)",
             "border-width": 2,
-            "border-color": "data(color)",
+            "border-color": "rgba(255,255,255,0.18)",
             "label": "data(title)",
             "color": "#E9ECFF",
             "font-size": 12,
             "text-wrap": "wrap",
             "text-max-width": 130,
             "text-outline-width": 3,
-            "text-outline-color": "#050711"
-          }
-        },
-        {
-          selector: 'node[kind = "hub"]',
-          style: {
-            "width": 88, "height": 88,
-            "border-width": 3,
-            "font-size": 18,
-            "text-max-width": 200
+            "text-outline-color": "#050711",
+            "shadow-blur": 14,
+            "shadow-color": "data(color)",
+            "shadow-opacity": 0.25,
+            "shadow-offset-x": 0,
+            "shadow-offset-y": 0
           }
         },
 
-        // ✅ FIX: show relationship names on arrows
+        /* Hubs: big planets */
+        {
+          selector: 'node[kind="hub"]',
+          style: {
+            "width": 110,
+            "height": 110,
+            "border-width": 4,
+            "border-color": "rgba(233,236,255,0.35)",
+            "background-color": "data(color)",
+            "background-opacity": 0.85,
+            "font-size": 18,
+            "font-weight": "bold",
+            "label": "data(title)",
+            "text-outline-width": 4,
+            "text-outline-color": "#050711",
+            "shadow-blur": 25,
+            "shadow-color": "data(color)",
+            "shadow-opacity": 0.55,
+            "shadow-offset-x": 0,
+            "shadow-offset-y": 0
+          }
+        },
+
+        /* Edges: premium + readable */
         {
           selector: "edge",
           style: {
-            "curve-style": "bezier",
-            "line-color": "rgba(180,200,255,0.22)",
+            "curve-style": "haystack",
+            "haystack-radius": 0.35,
+            "line-color": "rgba(180,200,255,0.20)",
             "width": 2,
             "target-arrow-shape": "triangle",
-            "target-arrow-color": "rgba(180,200,255,0.35)",
+            "target-arrow-color": "rgba(180,200,255,0.30)",
 
             "label": "data(label)",
             "font-size": 10,
@@ -397,19 +502,22 @@
             "text-rotation": "autorotate"
           }
         },
+
+        /* Hub edges: subtle + unlabeled */
         {
           selector: 'edge[kind = "hubEdge"]',
           style: {
             "line-color": "rgba(233,236,255,0.22)",
             "target-arrow-color": "rgba(233,236,255,0.28)",
             "width": 2,
-            "label": ""   // keep hub edges unlabeled
+            "label": ""
           }
         }
       ],
       wheelSensitivity: 0.15
     });
 
+    // keep stable zoom behavior
     cy.minZoom(0.35);
     cy.maxZoom(2.5);
 
@@ -441,6 +549,7 @@
       }
     });
 
+    // start at home
     homeView();
   }
 
