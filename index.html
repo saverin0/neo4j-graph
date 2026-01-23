@@ -88,7 +88,7 @@
     <div id="cy"></div>
     <div id="side">
       <h3>Details</h3>
-      <div id="details" class="muted">Home shows 3 hubs. Double click one hub to open that category.</div>
+      <div id="details" class="muted">Home shows hubs. Double click one hub to open that category.</div>
       <hr />
       <div class="muted">Tip: Hover a node to reduce clutter.</div>
     </div>
@@ -101,14 +101,18 @@
     CircularValueChain: "#00E5FF",
     Partner: "#FF2BD6",
     Deliverable: "#9BFF3A",
-    Other: "#FFD34A"
+    Demonstration: "#FFD34A",
+    Innovation: "#FF7A00",
+    Other: "#A3A9FF"
   };
 
-  // Visual-only hubs
+  // Visual-only hubs (NOW 5)
   const HUBS = [
     { id: "HUB_CVC", label: "CircularValueChain", title: "Circular Value Chains" },
     { id: "HUB_PARTNER", label: "Partner", title: "Partners" },
-    { id: "HUB_DELIV", label: "Deliverable", title: "Deliverables" }
+    { id: "HUB_DELIV", label: "Deliverable", title: "Deliverables" },
+    { id: "HUB_DEMO", label: "Demonstration", title: "Demonstrations" },
+    { id: "HUB_INNO", label: "Innovation", title: "Innovations" }
   ];
 
   let cy;
@@ -118,7 +122,6 @@
     return raw?.elements ?? null;
   }
 
-  // ---- Title helpers (fix IDs showing) ----
   function asNiceText(v) {
     if (v == null) return "";
     if (Array.isArray(v)) return v.filter(Boolean).join(" • ");
@@ -126,6 +129,7 @@
     return String(v);
   }
 
+  // ---- Title helpers (fix IDs showing) ----
   function pickNodeLabel(d) {
     const label = (d.labels && d.labels[0]) || "Other";
 
@@ -135,14 +139,21 @@
     if (label === "Deliverable") {
       return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || asNiceText(d.id);
     }
- if (label === "CircularValueChain") {
-  return asNiceText(d.valuechain_name)
-    || asNiceText(d.valuechain)
-    || asNiceText(d.value_chains)
-    || asNiceText(d.value_chain)
-    || asNiceText(d.id);
-}
-    return asNiceText(d.phase_id) || asNiceText(d.demonstrations) || asNiceText(d.id);
+    if (label === "CircularValueChain") {
+      return asNiceText(d.valuechain_name)
+        || asNiceText(d.valuechain)
+        || asNiceText(d.value_chains)
+        || asNiceText(d.value_chain)
+        || asNiceText(d.id);
+    }
+    if (label === "Demonstration") {
+      return asNiceText(d.demonstrations) || asNiceText(d.demonstrations_type) || asNiceText(d.id);
+    }
+    if (label === "Innovation") {
+      return asNiceText(d.innovations_name) || asNiceText(d.innovations) || asNiceText(d.id);
+    }
+
+    return asNiceText(d.phase_id) || asNiceText(d.id);
   }
 
   function colorForLabel(label) {
@@ -168,7 +179,7 @@
     }
 
     const rows = Object.entries(d)
-      .filter(([k]) => !["color","title","kind"].includes(k))
+      .filter(([k]) => !["color","title","kind","_placed"].includes(k))
       .sort((a,b) => a[0].localeCompare(b[0]))
       .map(([k,v]) => `<div class="kv"><div class="k">${k}</div><div class="v">${asNiceText(v)}</div></div>`)
       .join("");
@@ -188,30 +199,42 @@
     });
   }
 
-  // ---- Home: only 3 hubs ----
+  // ---- hub id router (NEW) ----
+  function hubIdFor(label) {
+    const L = (label || "").toLowerCase();
+    if (L.includes("circularvaluechain")) return "HUB_CVC";
+    if (L === "partner") return "HUB_PARTNER";
+    if (L === "deliverable") return "HUB_DELIV";
+    if (L === "demonstration") return "HUB_DEMO";
+    if (L === "innovation") return "HUB_INNO";
+    return null;
+  }
+
+  // ---- Home: only hubs ----
   function homeView() {
     cy.elements().addClass("hidden");
     cy.$('node[kind = "hub"]').removeClass("hidden");
     cy.edges().addClass("hidden");
 
-    // Place hubs nicely in a triangle (no layout chaos)
+    // Place hubs (keeps your stable home behavior)
     const w = cy.width(), h = cy.height();
-    cy.getElementById("HUB_PARTNER").position({ x: w*0.28, y: h*0.35 });
-    cy.getElementById("HUB_CVC").position({ x: w*0.28, y: h*0.70 });
-    cy.getElementById("HUB_DELIV").position({ x: w*0.70, y: h*0.55 });
+    cy.getElementById("HUB_PARTNER").position({ x: w*0.26, y: h*0.30 });
+    cy.getElementById("HUB_CVC").position({ x: w*0.26, y: h*0.70 });
+    cy.getElementById("HUB_DELIV").position({ x: w*0.68, y: h*0.50 });
+    cy.getElementById("HUB_DEMO").position({ x: w*0.50, y: h*0.25 });
+    cy.getElementById("HUB_INNO").position({ x: w*0.50, y: h*0.78 });
 
-    // Keep stable viewport
     cy.zoom(1);
     cy.center(cy.$('node[kind = "hub"]'));
 
     document.getElementById("details").innerHTML =
-      `<div class="muted">Home loaded: 3 hubs. Double click a hub to reveal that category.</div>`;
+      `<div class="muted">Home loaded: hubs. Double click a hub to reveal that category.</div>`;
   }
 
   // ---- Reveal category nodes in a tight circle around the hub ----
   function revealCategory(label) {
-    const hubId = label === "CircularValueChain" ? "HUB_CVC" :
-                  label === "Partner" ? "HUB_PARTNER" : "HUB_DELIV";
+    const hubId = hubIdFor(label);
+    if (!hubId) return;
 
     // Hide everything except hubs + this category nodes
     cy.elements().addClass("hidden");
@@ -237,40 +260,41 @@
     cy.edges().addClass("hidden");
     cy.edges().filter(e => e.data("kind")==="hubEdge" && e.data("source")===hubId).removeClass("hidden");
 
-    // Place nodes in a compact ring (NO long lines, NO zoom out)
+    // Compact ring around hub
     const nodes = group.toArray();
-    const radius = 220;                 // <--- controls compactness
+    const radius = 220;
     const startAngle = -Math.PI / 2;
     nodes.forEach((n, i) => {
       const a = startAngle + (2*Math.PI*i)/Math.max(nodes.length, 1);
       n.position({ x: center.x + radius*Math.cos(a), y: center.y + radius*Math.sin(a) });
     });
 
-    // Keep the camera stable and near hub
+    // Keep camera stable
     cy.animate({ center: { eles: hub } }, { duration: 200 });
 
     document.getElementById("details").innerHTML =
       `<div class="muted"><b>${label}</b> opened. Single click nodes for details. Double click a node to expand its real neighbors.</div>`;
   }
 
-  // ---- Expand real neighbors without global layout ----
+  // ---- Expand real neighbors + show ALL relationships among visible nodes (NEW) ----
   function expandRealNeighbors(node) {
-    // Reveal only 1-hop around the node
+
+    // reveal node
     node.removeClass("hidden");
+
+    // reveal 1-hop neighborhood via real edges (not hub edges)
     const realEdges = node.connectedEdges().filter(e => e.data("kind")!=="hubEdge");
     const neighbors = realEdges.connectedNodes();
 
     realEdges.removeClass("hidden");
     neighbors.removeClass("hidden");
 
-    // Put newly revealed neighbors close to clicked node (no messy global re-layout)
+    // Place newly revealed neighbors near clicked node (same behavior you liked)
     const c = node.position();
     const neigh = neighbors.toArray().filter(n => n.id() !== node.id());
     const r = 180;
 
     neigh.forEach((n, i) => {
-      // only reposition nodes that were hidden before (to avoid jumping)
-      // if a node already has a position, we leave it
       if (!n.data("_placed")) {
         const a = (2*Math.PI*i)/Math.max(neigh.length, 1);
         n.position({ x: c.x + r*Math.cos(a), y: c.y + r*Math.sin(a) });
@@ -278,7 +302,21 @@
       }
     });
 
-    // No zoom change; only small center nudge
+    // ✅ IMPORTANT: show ALL real relationships between currently visible nodes
+    // (So you see relationships between neighbors too, not only edges touching clicked node)
+    const visibleNodes = cy.nodes().filter(n => !n.hasClass("hidden") && n.data("kind")!=="hub");
+    const visibleIds = new Set(visibleNodes.map(n => n.id()));
+
+    cy.edges().forEach(e => {
+      if (e.data("kind")==="hubEdge") return;
+      const s = e.data("source") || e.source().id();
+      const t = e.data("target") || e.target().id();
+      if (visibleIds.has(s) && visibleIds.has(t)) {
+        e.removeClass("hidden");
+      }
+    });
+
+    // No zoom change; small center nudge
     cy.animate({ center: { eles: node } }, { duration: 180 });
   }
 
@@ -308,9 +346,11 @@
     const raw = await res.json();
     const elements = unwrapNeo4jBrowserJson(raw);
 
-    if (!elements?.nodes || !elements?.edges) {
+    // ✅ support both formats:
+    const edgeList = elements?.edges || elements?.relationships;
+    if (!elements?.nodes || !edgeList) {
       document.getElementById("details").innerHTML =
-        "<b>Error</b><br><br>graph.json could not be loaded. Make sure it is in the repo root.";
+        "<b>Error</b><br><br>graph.json could not be loaded (missing elements.nodes and elements.edges/relationships).";
       return;
     }
 
@@ -330,12 +370,12 @@
     });
 
     // Real edges
-    const realEdges = elements.edges.map(e => {
+    const realEdges = edgeList.map(e => {
       const d = e.data || {};
       return {
         data: {
           ...d,
-          label: d.type || "REL",
+          label: d.type || d.label || "REL",
           kind: "realEdge"
         }
       };
@@ -388,8 +428,7 @@
             "width": 2,
             "target-arrow-shape": "triangle",
             "target-arrow-color": "rgba(180,200,255,0.35)",
-            // keep edge labels off = less clutter
-            "label": "",
+            "label": ""
           }
         },
         {
@@ -404,18 +443,16 @@
       wheelSensitivity: 0.15
     });
 
-    // Prevent extreme zoom-outs
+    // Prevent extreme zoom-outs (keeps your experience stable)
     cy.minZoom(0.35);
     cy.maxZoom(2.5);
 
     enableHoverFocus();
-
     cy.on("tap", "node", (evt) => handleTap(evt.target));
 
     document.getElementById("btnHome").onclick = () => homeView();
     document.getElementById("btnShowAll").onclick = () => {
       cy.elements().removeClass("hidden");
-      // no global layout here to avoid chaos
       document.getElementById("details").innerHTML =
         `<div class="muted">All nodes shown. Hover a node to focus. Double click nodes to expand locally.</div>`;
     };
