@@ -95,7 +95,6 @@
   </div>
 
 <script>
-  // Colors
   const COLORS = {
     hub: "#B8BFFF",
     CircularValueChain: "#00E5FF",
@@ -106,7 +105,6 @@
     Other: "#A3A9FF"
   };
 
-  // Visual-only hubs (NOW 5)
   const HUBS = [
     { id: "HUB_CVC", label: "CircularValueChain", title: "Circular Value Chains" },
     { id: "HUB_PARTNER", label: "Partner", title: "Partners" },
@@ -129,16 +127,12 @@
     return String(v);
   }
 
-  // ---- Title helpers (fix IDs showing) ----
   function pickNodeLabel(d) {
     const label = (d.labels && d.labels[0]) || "Other";
 
-    if (label === "Partner") {
-      return asNiceText(d.partners) || asNiceText(d.partners_legalname) || asNiceText(d.id);
-    }
-    if (label === "Deliverable") {
-      return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || asNiceText(d.id);
-    }
+    if (label === "Partner") return asNiceText(d.partners) || asNiceText(d.partners_legalname) || asNiceText(d.id);
+    if (label === "Deliverable") return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || asNiceText(d.id);
+
     if (label === "CircularValueChain") {
       return asNiceText(d.valuechain_name)
         || asNiceText(d.valuechain)
@@ -146,12 +140,9 @@
         || asNiceText(d.value_chain)
         || asNiceText(d.id);
     }
-    if (label === "Demonstration") {
-      return asNiceText(d.demonstrations) || asNiceText(d.demonstrations_type) || asNiceText(d.id);
-    }
-    if (label === "Innovation") {
-      return asNiceText(d.innovations_name) || asNiceText(d.innovations) || asNiceText(d.id);
-    }
+
+    if (label === "Demonstration") return asNiceText(d.demonstrations) || asNiceText(d.demonstrations_type) || asNiceText(d.id);
+    if (label === "Innovation") return asNiceText(d.innovations_name) || asNiceText(d.innovations) || asNiceText(d.id);
 
     return asNiceText(d.phase_id) || asNiceText(d.id);
   }
@@ -160,7 +151,6 @@
     return COLORS[label] || COLORS.Other;
   }
 
-  // ---- Details panel ----
   function showDetails(ele) {
     const d = ele.data();
     const head = `
@@ -187,7 +177,6 @@
     document.getElementById("details").innerHTML = head + (rows || `<div class="muted">No properties</div>`);
   }
 
-  // ---- Clutter control: hover focus ----
   function enableHoverFocus() {
     cy.on("mouseover", "node", (evt) => {
       const n = evt.target;
@@ -199,7 +188,6 @@
     });
   }
 
-  // ---- hub id router (NEW) ----
   function hubIdFor(label) {
     const L = (label || "").toLowerCase();
     if (L.includes("circularvaluechain")) return "HUB_CVC";
@@ -210,13 +198,11 @@
     return null;
   }
 
-  // ---- Home: only hubs ----
   function homeView() {
     cy.elements().addClass("hidden");
     cy.$('node[kind = "hub"]').removeClass("hidden");
     cy.edges().addClass("hidden");
 
-    // Place hubs (keeps your stable home behavior)
     const w = cy.width(), h = cy.height();
     cy.getElementById("HUB_PARTNER").position({ x: w*0.26, y: h*0.30 });
     cy.getElementById("HUB_CVC").position({ x: w*0.26, y: h*0.70 });
@@ -231,12 +217,10 @@
       `<div class="muted">Home loaded: hubs. Double click a hub to reveal that category.</div>`;
   }
 
-  // ---- Reveal category nodes in a tight circle around the hub ----
   function revealCategory(label) {
     const hubId = hubIdFor(label);
     if (!hubId) return;
 
-    // Hide everything except hubs + this category nodes
     cy.elements().addClass("hidden");
     cy.$('node[kind="hub"]').removeClass("hidden");
 
@@ -246,7 +230,6 @@
     const group = cy.nodes().filter(n => n.data("kind")==="real" && n.data("label")===label);
     group.removeClass("hidden");
 
-    // Create synthetic edges hub -> each node (once)
     const newEdges = [];
     group.forEach(n => {
       const eid = `HE_${hubId}_${n.id()}`;
@@ -256,11 +239,9 @@
     });
     if (newEdges.length) cy.add(newEdges);
 
-    // Show only hub edges for this hub
     cy.edges().addClass("hidden");
     cy.edges().filter(e => e.data("kind")==="hubEdge" && e.data("source")===hubId).removeClass("hidden");
 
-    // Compact ring around hub
     const nodes = group.toArray();
     const radius = 220;
     const startAngle = -Math.PI / 2;
@@ -269,27 +250,22 @@
       n.position({ x: center.x + radius*Math.cos(a), y: center.y + radius*Math.sin(a) });
     });
 
-    // Keep camera stable
     cy.animate({ center: { eles: hub } }, { duration: 200 });
 
     document.getElementById("details").innerHTML =
       `<div class="muted"><b>${label}</b> opened. Single click nodes for details. Double click a node to expand its real neighbors.</div>`;
   }
 
-  // ---- Expand real neighbors + show ALL relationships among visible nodes (NEW) ----
+  // ✅ FIXED: only show clicked node’s own edges + neighbors (like before)
   function expandRealNeighbors(node) {
-
-    // reveal node
     node.removeClass("hidden");
 
-    // reveal 1-hop neighborhood via real edges (not hub edges)
     const realEdges = node.connectedEdges().filter(e => e.data("kind")!=="hubEdge");
     const neighbors = realEdges.connectedNodes();
 
     realEdges.removeClass("hidden");
     neighbors.removeClass("hidden");
 
-    // Place newly revealed neighbors near clicked node (same behavior you liked)
     const c = node.position();
     const neigh = neighbors.toArray().filter(n => n.id() !== node.id());
     const r = 180;
@@ -302,25 +278,9 @@
       }
     });
 
-    // ✅ IMPORTANT: show ALL real relationships between currently visible nodes
-    // (So you see relationships between neighbors too, not only edges touching clicked node)
-    const visibleNodes = cy.nodes().filter(n => !n.hasClass("hidden") && n.data("kind")!=="hub");
-    const visibleIds = new Set(visibleNodes.map(n => n.id()));
-
-    cy.edges().forEach(e => {
-      if (e.data("kind")==="hubEdge") return;
-      const s = e.data("source") || e.source().id();
-      const t = e.data("target") || e.target().id();
-      if (visibleIds.has(s) && visibleIds.has(t)) {
-        e.removeClass("hidden");
-      }
-    });
-
-    // No zoom change; small center nudge
     cy.animate({ center: { eles: node } }, { duration: 180 });
   }
 
-  // ---- Double click detection ----
   let lastTapTime = 0;
   let lastTapId = null;
 
@@ -346,15 +306,13 @@
     const raw = await res.json();
     const elements = unwrapNeo4jBrowserJson(raw);
 
-    // ✅ support both formats:
     const edgeList = elements?.edges || elements?.relationships;
     if (!elements?.nodes || !edgeList) {
       document.getElementById("details").innerHTML =
-        "<b>Error</b><br><br>graph.json could not be loaded (missing elements.nodes and elements.edges/relationships).";
+        "<b>Error</b><br><br>graph.json missing elements.nodes and elements.edges/relationships.";
       return;
     }
 
-    // Real nodes
     const realNodes = elements.nodes.map(n => {
       const d = n.data || {};
       const label = (d.labels && d.labels[0]) || "Other";
@@ -369,19 +327,19 @@
       };
     });
 
-    // Real edges
     const realEdges = edgeList.map(e => {
       const d = e.data || {};
       return {
         data: {
           ...d,
+          source: d.source || d.startNode,
+          target: d.target || d.endNode,
           label: d.type || d.label || "REL",
           kind: "realEdge"
         }
       };
     });
 
-    // Hub nodes
     const hubNodes = HUBS.map(h => ({
       data: { id: h.id, label: h.label, title: h.title, color: COLORS.hub, kind: "hub" }
     }));
@@ -420,6 +378,7 @@
           }
         },
 
+        // ✅ FIX: show relationship names on arrows
         {
           selector: "edge",
           style: {
@@ -428,7 +387,14 @@
             "width": 2,
             "target-arrow-shape": "triangle",
             "target-arrow-color": "rgba(180,200,255,0.35)",
-            "label": ""
+
+            "label": "data(label)",
+            "font-size": 10,
+            "color": "rgba(233,236,255,0.85)",
+            "text-background-opacity": 0.75,
+            "text-background-color": "rgba(5,7,17,0.85)",
+            "text-background-padding": "2px",
+            "text-rotation": "autorotate"
           }
         },
         {
@@ -436,14 +402,14 @@
           style: {
             "line-color": "rgba(233,236,255,0.22)",
             "target-arrow-color": "rgba(233,236,255,0.28)",
-            "width": 2
+            "width": 2,
+            "label": ""   // keep hub edges unlabeled
           }
         }
       ],
       wheelSensitivity: 0.15
     });
 
-    // Prevent extreme zoom-outs (keeps your experience stable)
     cy.minZoom(0.35);
     cy.maxZoom(2.5);
 
