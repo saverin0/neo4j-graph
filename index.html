@@ -134,15 +134,31 @@
   }
 
   function pickNodeLabel(d) {
-    const label = (d.labels && d.labels[0]) || "Other";
-    if (label === "Material") return asNiceText(d.name) || asNiceText(d.id);
-    if (label === "ValueChainStage") return asNiceText(d.name) || asNiceText(d.id);
-    if (label === "Partner") return asNiceText(d.partners) || asNiceText(d.partners_legalname) || asNiceText(d.id);
-    if (label === "Deliverable") return asNiceText(d.deliverables_no) || asNiceText(d.deliverables_name) || asNiceText(d.id);
-    if (label === "Demonstration") return asNiceText(d.demonstrations) || asNiceText(d.demonstrations_type) || asNiceText(d.id);
-    if (label === "Innovation") return asNiceText(d.innovations_name) || asNiceText(d.innovations) || asNiceText(d.id);
-    return asNiceText(d.phase_id) || asNiceText(d.id);
-  }
+
+  const label = (d.labels && d.labels[0]) || "Other";
+  const p = d.properties || {};
+
+  if (label === "Material") 
+    return asNiceText(p.material_name) || asNiceText(p.material) || asNiceText(d.id);
+
+  if (label === "ValueChainStage") 
+    return asNiceText(p.stage_name) || asNiceText(p.phase_id) || asNiceText(d.id);
+
+  if (label === "Partner") 
+    return asNiceText(p.partners) || asNiceText(p.partners_legalname) || asNiceText(d.id);
+
+  if (label === "Deliverable") 
+    return asNiceText(p.deliverables_no) || asNiceText(p.deliverables_name) || asNiceText(d.id);
+
+  if (label === "Demonstration") 
+    return asNiceText(p.demonstrations) || asNiceText(p.demonstrations_type) || asNiceText(d.id);
+
+  if (label === "Innovation") 
+    return asNiceText(p.innovations_name) || asNiceText(p.innovations) || asNiceText(d.id);
+
+  return asNiceText(d.id);
+}
+
 
   function sizeForLabel(label) {
     if (label === "Material") return 24;
@@ -494,3 +510,4 @@
 </script>
 </body>
 </html>
+
