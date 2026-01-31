@@ -155,6 +155,13 @@ function pickNodeLabel(d) {
   if (label === "Demonstration") return asNiceText(p.demonstrations) || asNiceText(p.demonstrations_type) || asNiceText(d.id);
   if (label === "Innovation") return asNiceText(p.innovations_name) || asNiceText(p.innovations) || asNiceText(d.id);
 
+  if (label === "Phase") {
+    return asNiceText(p.phase_id)
+      || asNiceText(p.phases)
+      || asNiceText(p.name)
+      || asNiceText(d.id);
+  }
+
   return asNiceText(p.name) || asNiceText(d.id);
 }
 
@@ -510,5 +517,6 @@ function pickNodeLabel(d) {
 </script>
 </body>
 </html>
+
 
 
