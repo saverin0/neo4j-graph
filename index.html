@@ -133,31 +133,31 @@
     return String(v);
   }
 
-  function pickNodeLabel(d) {
-
-  const label = (d.labels && d.labels[0]) || "Other";
+function pickNodeLabel(d) {
+  const labels = d.labels || [];
+  const label = labels[0] || "Other";
   const p = d.properties || {};
 
-  if (label === "Material") 
-    return asNiceText(p.material_name) || asNiceText(p.material) || asNiceText(d.id);
+  // ✅ Material nodes: prefer "material", then "name"
+  if (label === "Material") {
+    return asNiceText(p.material) || asNiceText(p.name) || asNiceText(d.id);
+  }
 
-  if (label === "ValueChainStage") 
-    return asNiceText(p.stage_name) || asNiceText(p.phase_id) || asNiceText(d.id);
+  // ✅ ValueChainStage nodes: show "name", optionally include material
+  if (label === "ValueChainStage") {
+    const stage = asNiceText(p.name);
+    const mat = asNiceText(p.material);
+    return (stage && mat) ? `${stage} (${mat})` : (stage || mat || asNiceText(d.id));
+  }
 
-  if (label === "Partner") 
-    return asNiceText(p.partners) || asNiceText(p.partners_legalname) || asNiceText(d.id);
+  if (label === "Partner") return asNiceText(p.partners) || asNiceText(p.partners_legalname) || asNiceText(d.id);
+  if (label === "Deliverable") return asNiceText(p.deliverables_no) || asNiceText(p.deliverables_name) || asNiceText(d.id);
+  if (label === "Demonstration") return asNiceText(p.demonstrations) || asNiceText(p.demonstrations_type) || asNiceText(d.id);
+  if (label === "Innovation") return asNiceText(p.innovations_name) || asNiceText(p.innovations) || asNiceText(d.id);
 
-  if (label === "Deliverable") 
-    return asNiceText(p.deliverables_no) || asNiceText(p.deliverables_name) || asNiceText(d.id);
-
-  if (label === "Demonstration") 
-    return asNiceText(p.demonstrations) || asNiceText(p.demonstrations_type) || asNiceText(d.id);
-
-  if (label === "Innovation") 
-    return asNiceText(p.innovations_name) || asNiceText(p.innovations) || asNiceText(d.id);
-
-  return asNiceText(d.id);
+  return asNiceText(p.name) || asNiceText(d.id);
 }
+
 
 
   function sizeForLabel(label) {
@@ -510,4 +510,5 @@
 </script>
 </body>
 </html>
+
 
