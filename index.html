@@ -72,22 +72,6 @@
     hr { border: 0; border-top: 1px solid rgba(255,255,255,0.10); margin: 10px 0; }
     a { color: #9fd3ff; }
     .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); font-size:12px; }
-    #legend {
-      position: fixed; bottom: 12px; left: 12px; z-index: 999;
-      background: rgba(10,12,22,0.88);
-      border: 1px solid rgba(255,255,255,0.10);
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.45);
-      padding: 10px 14px;
-      backdrop-filter: blur(8px);
-      color: #E9ECFF;
-      font-size: 12px;
-      max-width: 220px;
-    }
-    #legend .legend-title { font-weight: 700; margin-bottom: 6px; font-size: 13px; }
-    #legend .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-    #legend .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-    .searchMatch { border: 3px solid #fff !important; }
   </style>
 </head>
 
@@ -106,7 +90,7 @@
     <div id="cy"></div>
     <div id="side">
       <h3>Details</h3>
-      <div id="details" class="muted">Home shows category hubs. Double click one hub to open that category.</div>
+      <div id="details" class="muted">Home shows 6 hubs. Double click one hub to open that category.</div>
       <hr />
       <div class="muted">
         Tip: Hover a node to reduce clutter. Relationship names show on focused edges (and when zoomed in).
@@ -115,8 +99,6 @@
       <div id="debug" class="muted"></div>
     </div>
   </div>
-
-  <div id="legend"></div>
 
 <script>
   // ----------------------------- Config -----------------------------
@@ -130,8 +112,7 @@
     Phase: "#A3A9FF",
     CircularPath: "#B8BFFF",
     Path: "#B8BFFF",
-    Publication: "#FF6B8A",
-    Other: "#8899BB"
+    Other: "#A3A9FF"
   };
 
   const HUB_COLORS = {
@@ -140,32 +121,8 @@
     Partner: "#FF4DE1",
     Deliverable: "#B4FF4A",
     Demonstration: "#FFE06A",
-    Innovation: "#FF9A3C",
-    Phase: "#B0B8FF",
-    CircularPath: "#CCD2FF",
-    Publication: "#FF8DA6"
+    Innovation: "#FF9A3C"
   };
-
-  const EDGE_COLORS = {
-    OWNS_INNOVATION: "rgba(255,122,0,0.45)",
-    OWNS_DEMONSTRATION: "rgba(255,211,74,0.45)",
-    IS_MAIN_AUTHOR: "rgba(255,107,138,0.45)",
-    CONTRIBUTED_TO: "rgba(255,43,214,0.40)",
-    REVIEWED: "rgba(163,169,255,0.40)",
-    BELONGS_TO: "rgba(155,255,58,0.40)",
-    APPLIED_IN: "rgba(0,229,255,0.40)",
-    DESCRIBED_IN: "rgba(255,107,138,0.35)",
-    HAS_PHASE: "rgba(163,169,255,0.35)",
-    HAS_STAGE: "rgba(61,180,255,0.40)",
-    PRE_PHASE: "rgba(184,191,255,0.30)",
-    POST_PHASE: "rgba(184,191,255,0.30)",
-    PRE_STAGE: "rgba(61,180,255,0.30)",
-    POST_STAGE: "rgba(61,180,255,0.30)",
-    RETURNS_TO_STAGE: "rgba(76,201,255,0.45)",
-    PROVIDES_ELECTRICITY_FOR: "rgba(0,229,255,0.50)",
-    ENABLES_CIRCULAR_PATH: "rgba(184,191,255,0.45)"
-  };
-  function edgeColor(type) { return EDGE_COLORS[type] || "rgba(200,220,255,0.22)"; }
 
   const HUBS = [
     { id: "HUB_MAT", label: "Material", title: "Materials" },
@@ -173,10 +130,7 @@
     { id: "HUB_PARTNER", label: "Partner", title: "Partners" },
     { id: "HUB_DELIV", label: "Deliverable", title: "Deliverables" },
     { id: "HUB_DEMO", label: "Demonstration", title: "Demonstrations" },
-    { id: "HUB_INNO", label: "Innovation", title: "Innovations" },
-    { id: "HUB_PHASE", label: "Phase", title: "Phases" },
-    { id: "HUB_CIRC", label: "CircularPath", title: "Circular Paths" },
-    { id: "HUB_PUB", label: "Publication", title: "Publications" }
+    { id: "HUB_INNO", label: "Innovation", title: "Innovations" }
   ];
 
   let cy;
@@ -253,7 +207,6 @@
     if (label === "Innovation") return asNiceText(p.innovations_name) || asNiceText(p.innovations) || asNiceText(d.id);
     if (label === "Phase") return asNiceText(p.phase_id) || asNiceText(p.phases) || asNiceText(p.name) || asNiceText(d.id);
     if (label === "CircularPath" || label === "Path") return asNiceText(p.name) || asNiceText(p.phase_path) || asNiceText(d.id);
-    if (label === "Publication") return asNiceText(p.publications_title) || asNiceText(p.title) || asNiceText(p.name) || asNiceText(d.id);
 
     return asNiceText(p.name) || asNiceText(d.id);
   }
@@ -267,7 +220,6 @@
     if (label === "Innovation") return 21;
     if (label === "Phase") return 18;
     if (label === "CircularPath" || label === "Path") return 20;
-    if (label === "Publication") return 22;
     return 16;
   }
   function colorForLabel(label) { return COLORS[label] || COLORS.Other; }
@@ -291,7 +243,7 @@
     }
 
     const topRows = Object.entries(d)
-      .filter(([k]) => !["color","title","kind","_placed","size","properties"].includes(k))
+      .filter(([k]) => !["id","color","title","kind","_placed","size","properties","label","labels"].includes(k))
       .sort((a,b) => a[0].localeCompare(b[0]))
       .map(([k,v]) => `<div class="kv"><div class="k">${k}</div><div class="v">${renderValue(v)}</div></div>`)
       .join("");
@@ -312,13 +264,11 @@
   function enableHoverFocus() {
     cy.on("mouseover", "node", (evt) => {
       const n = evt.target;
-      cy.elements().addClass("dim");
-      n.closedNeighborhood().removeClass("dim").addClass("hi");
-      cy.edges().removeClass("edgeLabelOn");
-      n.closedNeighborhood().edges().addClass("edgeLabelOn");
+      n.addClass("hi");
+      n.connectedEdges().addClass("edgeLabelOn");
     });
     cy.on("mouseout", "node", () => {
-      cy.elements().removeClass("dim hi");
+      cy.elements().removeClass("hi");
       cy.edges().removeClass("edgeLabelOn");
     });
   }
@@ -332,9 +282,6 @@
     if (L === "deliverable") return "HUB_DELIV";
     if (L === "demonstration") return "HUB_DEMO";
     if (L === "innovation") return "HUB_INNO";
-    if (L === "phase") return "HUB_PHASE";
-    if (L === "circularpath" || L === "path") return "HUB_CIRC";
-    if (L === "publication") return "HUB_PUB";
     return null;
   }
 
@@ -362,7 +309,7 @@
     cy.center(cy.$('node[kind="hub"]'));
 
     document.getElementById("details").innerHTML =
-      `<div class="muted">Home loaded: ${HUBS.length} category hubs (clean start). Double click a hub to reveal that category.</div>`;
+      `<div class="muted">Home loaded: only ${HUBS.length} hubs (clean start). Double click a hub to reveal that category.</div>`;
   }
 
   function revealCategory(label) {
@@ -625,7 +572,7 @@
       const type = d.type || d.label || d.relType || "REL";
       const props = d.properties || {};
 
-      return { data: { id: String(id), source: s, target: t, label: type, type, properties: props, kind:"realEdge", edgeColor: edgeColor(type) } };
+      return { data: { id: String(id), source: s, target: t, label: type, type, properties: props, kind:"realEdge" } };
     }).filter(e => e.data.source && e.data.target);
 
     // DEBUG: count edges that point to missing nodes
@@ -642,22 +589,10 @@
     document.getElementById("stats").innerHTML =
       `Nodes: <b>${realNodes.length}</b> • Edges: <b>${goodEdges.length}</b>`;
 
-    // Hubs – include node counts in titles
-    const labelCounts = {};
-    realNodes.forEach(n => { const l = n.data.label; labelCounts[l] = (labelCounts[l] || 0) + 1; });
-
+    // Hubs
     const hubNodes = HUBS.map(h => ({
-      data: { id:h.id, label:h.label, title:`${h.title}\n(${labelCounts[h.label] || 0})`, color:HUB_COLORS[h.label] || "#B8BFFF", size:125, kind:"hub" }
+      data: { id:h.id, label:h.label, title:h.title, color:HUB_COLORS[h.label] || "#B8BFFF", size:125, kind:"hub" }
     }));
-
-    // Build legend
-    const legendHtml = '<div class="legend-title">Node Types</div>' +
-      HUBS.map(h => {
-        const c = COLORS[h.label] || COLORS.Other;
-        const count = labelCounts[h.label] || 0;
-        return `<div class="legend-item"><div class="legend-dot" style="background:${c};box-shadow:0 0 6px ${c}"></div><span>${h.title} (${count})</span></div>`;
-      }).join('');
-    document.getElementById("legend").innerHTML = legendHtml;
 
     cy = cytoscape({
       container: document.getElementById("cy"),
@@ -666,7 +601,6 @@
         { selector: ".hidden", style: { "display": "none" } },
         { selector: ".dim", style: { "opacity": 0.10 } },
         { selector: ".hi", style: { "opacity": 1, "shadow-blur": 30, "shadow-opacity": 0.7, "shadow-color": "#ffffff" } },
-        { selector: ".searchMatch", style: { "border-width": 4, "border-color": "#FFFFFF", "shadow-blur": 40, "shadow-color": "#FFFFFF", "shadow-opacity": 0.8 } },
 
         {
           selector: 'node[kind="real"]',
@@ -692,23 +626,6 @@
           }
         },
 
-        {
-          selector:'edge[kind="realEdge"]',
-          style:{
-            "curve-style":"unbundled-bezier",
-            "control-point-distances":46,
-            "control-point-weights":0.5,
-            "line-color":"data(edgeColor)",
-            "width":2,
-            "target-arrow-shape":"triangle",
-            "target-arrow-color":"data(edgeColor)",
-            "label":"",
-            "font-size":10,
-            "color":"rgba(255,255,255,0.90)",
-            "text-outline-width":4,
-            "text-outline-color":"#000"
-          }
-        },
         {
           selector:"edge",
           style:{
@@ -774,22 +691,8 @@
     document.getElementById("btnShowAll").onclick = () => {
       cy.nodes().removeClass("hidden");
       cy.edges().removeClass("hidden");
-      // Hide hub-specific edges when showing the real graph
-      cy.edges('[kind="hubEdge"]').addClass("hidden");
-      cy.$('node[kind="hub"]').addClass("hidden");
-      // Apply a force-directed layout for better readability
-      cy.nodes('[kind="real"]').layout({
-        name: "cose",
-        animate: true,
-        animationDuration: 600,
-        nodeRepulsion: function(){ return 8000; },
-        idealEdgeLength: function(){ return 120; },
-        gravity: 0.3,
-        numIter: 300,
-        padding: 40
-      }).run();
       document.getElementById("details").innerHTML =
-        `<div class="muted">All nodes shown with force-directed layout. Hover a node to focus and see relationship names.</div>`;
+        `<div class="muted">All nodes shown. Hover a node to focus and see relationship names.</div>`;
       updateEdgeLabelVisibility();
     };
 
@@ -798,29 +701,19 @@
       const q = e.target.value.trim().toLowerCase();
       if (!q) return;
 
-      // Clear previous search highlights
-      cy.nodes().removeClass("searchMatch");
-
-      const hits = cy.nodes().filter(n=>{
+      const hit = cy.nodes().filter(n=>{
         const d=n.data();
         if (d.kind!=="real") return false;
 
         // search in top-level + in properties object
         const vals = Object.values(d).concat(Object.values(d.properties || {}));
         return vals.some(v => asNiceText(v).toLowerCase().includes(q));
-      });
+      }).first();
 
-      if (hits.length) {
-        hits.removeClass("hidden");
-        hits.addClass("searchMatch");
-        showDetails(hits.first());
-        cy.animate({ fit: { eles: hits, padding: 60 } }, { duration: 300 });
-        document.getElementById("details").innerHTML =
-          `<div class="muted"><b>${hits.length}</b> result(s) for "<b>${q}</b>".</div>` +
-          document.getElementById("details").innerHTML;
-      } else {
-        document.getElementById("details").innerHTML =
-          `<div class="muted">No results for "<b>${q}</b>".</div>`;
+      if (hit && hit.length) {
+        hit.removeClass("hidden");
+        showDetails(hit);
+        cy.animate({ center:{ eles: hit } }, { duration: 200 });
       }
     });
 
